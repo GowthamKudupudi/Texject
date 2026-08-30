@@ -1,6 +1,6 @@
 # list does not recognize sub-command FILTER for version 3.5
 cmake_minimum_required (VERSION 3.6)
-project (FFJSON CXX C)
+project (txj CXX C)
 include (GNUInstallDirs)
 message ("Generating build procedure for ${PROJECT_NAME} ...")
 
@@ -12,7 +12,7 @@ message ("SRC_RLTV_BLD_DIR: ${SRC_RLTV_BLD_DIR}")
 set (BUILD_TARGET "${SRC_RLTV_BLD_DIR}")
 message ("BUILD_TARGET: ${BUILD_TARGET}")
 
-if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../FFJSON")
+if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../Texject")
    if (NOT TARGET logger)
       add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../logger
          ${CMAKE_CURRENT_SOURCE_DIR}/../logger/${SRC_RLTV_BLD_DIR})
@@ -43,7 +43,7 @@ configure_file(
 # macOS specific code
 if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
    set(macOS ON)
-   message("FFJSON: macOS ON")
+   message("Texject: macOS ON")
 endif (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 
 # Linux specific code
@@ -106,8 +106,8 @@ if(CMAKE_CONFIGURATION_TYPES)
    link_directories("../ferrybase/${BUILD_TARGET}/$(ConfigurationName)")
    link_directories("../logger/${BUILD_TARGET}/$(ConfigurationName)")
 else(CMAKE_CONFIGURATION_TYPES)
-   link_directories("../ferrybase")
-   link_directories("../logger")
+   link_directories("../ferrybase/${BUILD_TARGET}")
+   link_directories("../logger/${BUILD_TARGET}")
 endif()
 MESSAGE("CMAKE_INSTALL_FULL_INCLUDEDIR ${CMAKE_INSTALL_FULL_INCLUDEDIR}")
 MESSAGE("CMAKE_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR}")
@@ -159,7 +159,7 @@ if (BUILD_TESTING)
       UpdateTest.json
       example.json
    )
-   target_link_libraries(TestFFJSON FFJSON logger ferrybase)
+   target_link_libraries(TestFFJSON txj logger ferrybase)
    if (${LINKAGE} MATCHES "DYNAMIC")
       target_link_libraries(TestFFJSON xml2 pthread ssl crypto z rt
         icuuc icudata icui18n jpeg)
@@ -184,7 +184,7 @@ if (BUILD_TESTING)
       $<INSTALL_INTERFACE:include/${Umbrella}>
    )
    add_executable(IteratorIncrement tests/iteratorincrement.cpp)
-   target_link_libraries(IteratorIncrement FFJSON logger ferrybase)
+   target_link_libraries(IteratorIncrement txj logger ferrybase)
    target_include_directories(IteratorIncrement PUBLIC
       ${CMAKE_CURRENT_SOURCE_DIR}
       ${CMAKE_INSTALL_FULL_INCLUDEDIR}/${Umbrella}

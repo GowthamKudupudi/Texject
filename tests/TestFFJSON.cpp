@@ -5,7 +5,7 @@
  */
 
 /* 
- * File:   TestFFJSON.cpp
+ * File:   TestTxj.cpp
  * Author: gowtham
  *
  * Created on 26 August, 2016, 10:49 PM
@@ -80,9 +80,9 @@ Test_ testFunc2 () {
 }
 void test1 () {
    cout << "===================================================" << endl;
-   cout << "               TestFFJSON test 1                   " << endl;
+   cout << "               TestTxj test 1                   " << endl;
    cout << "===================================================" << endl;
-   FFJSON f(FFJSON::ARRAY);
+   Txj f(Txj::ARRAY);
    f[0]=1;
    char cCurrentPath[FILENAME_MAX];
    
@@ -104,9 +104,9 @@ void test1 () {
    ifs.seekg(0, ios::beg);
    ffjsonStr.assign((istreambuf_iterator<char>(ifs)),
                     istreambuf_iterator<char>());
-   FFJSON ffo(ffjsonStr);
+   Txj ffo(ffjsonStr);
    cout << "amphibians: " << endl;
-   FFJSON::Iterator i = ffo["amphibians"].begin(); //["amphibians"]
+   Txj::Iterator i = ffo["amphibians"].begin(); //["amphibians"]
    while ((i != ffo["amphibians"].end())) {
       cout << string(i) << ":" << i->stringify() << endl;
       ++i;
@@ -114,8 +114,8 @@ void test1 () {
    cout << endl;
    string ps = ffo.prettyString(false, true);
    cout << ps << endl;
-   FFJSON ffo2(ps);
-   ffo2["amphibians"]["genome"].setEFlag(FFJSON::E_FLAGS::B64ENCODE);
+   Txj ffo2(ps);
+   ffo2["amphibians"]["genome"].setEFlag(Txj::E_FLAGS::B64ENCODE);
    ffo2["amphibians"]["salamanders"] = "salee";
    string ps2 = ffo2.prettyString(false, true);
    cout << ps2 << endl;
@@ -139,7 +139,7 @@ void test1 () {
    cout << "size after trim: " << ffo2["animals"].size << endl;
    string ps3 = ffo2.prettyString();
    cout << ps3 << endl;
-   cout << "FFJSON signature size: " << sizeof (ffo2) << endl;
+   cout << "Txj signature size: " << sizeof (ffo2) << endl;
    
    cout << "sizeInfo test 1" << endl;
    
@@ -154,33 +154,33 @@ void test1 () {
    
    cout << "size of pointer: " << sizeof (int *) << endl;
    
-   ffo2["amphibians"]["frogs"].setQType(FFJSON::QUERY_TYPE::QUERY);
-   ffo2["amphibians"]["salamanders"].setQType(FFJSON::QUERY_TYPE::DEL);
-   ffo2["amphibians"]["genome"].setQType(FFJSON::QUERY_TYPE::SET);
-   ffo2["birds"][1].setQType(FFJSON::QUERY_TYPE::DEL);
-   ffo2["birds"][2].setQType(FFJSON::QUERY_TYPE::SET);
-   ffo2["birds"][3].setQType(FFJSON::QUERY_TYPE::QUERY);
+   ffo2["amphibians"]["frogs"].setQType(Txj::QUERY_TYPE::QUERY);
+   ffo2["amphibians"]["salamanders"].setQType(Txj::QUERY_TYPE::DEL);
+   ffo2["amphibians"]["genome"].setQType(Txj::QUERY_TYPE::SET);
+   ffo2["birds"][1].setQType(Txj::QUERY_TYPE::DEL);
+   ffo2["birds"][2].setQType(Txj::QUERY_TYPE::SET);
+   ffo2["birds"][3].setQType(Txj::QUERY_TYPE::QUERY);
    string query = ffo2.queryString();
    ffo2["amphibians"]["genome"] = "<xml>gnomechanged :p</xml>";
    ffo2["birds"][2] = "kiwi";
    cout << ffo2.prettyString() << endl;
    cout << query << endl;
-   FFJSON qo(query);
+   Txj qo(query);
    query = qo.queryString();
    cout << query << endl;
    
-   if (ffo2["amphibians"]["frogs"].isEFlagSet(FFJSON::E_FLAGS::EXTENDED)) {
+   if (ffo2["amphibians"]["frogs"].isEFlagSet(Txj::E_FLAGS::EXTENDED)) {
       cout << "already extended" << endl;
    }
-   FFJSON* ao = ffo2.answerObject(&qo);
-   if (ffo2["amphibians"]["frogs"].isEFlagSet(FFJSON::E_FLAGS::EXTENDED)) {
+   Txj* ao = ffo2.answerObject(&qo);
+   if (ffo2["amphibians"]["frogs"].isEFlagSet(Txj::E_FLAGS::EXTENDED)) {
       cout << "already extended" << endl;
    }
    
    cout << ao->stringify() << endl;
    string ffo2a = ffo2.prettyString();
    cout << ffo2a << endl;
-   FFJSON ffo2ao(ffo2a);
+   Txj ffo2ao(ffo2a);
    ffo2a = ffo2ao.stringify();
    cout << ffo2a << endl;
    ffo2a = ffo2ao.prettyString();
@@ -201,7 +201,7 @@ struct testStruct {
 
 void test2 () {
    cout << "===================================================" << endl;
-   cout << "               TestFFJSON test 2                   " << endl;
+   cout << "               TestTxj test 2                   " << endl;
    cout << "===================================================" << endl;
 
    string fn = "/home/gowtham/Projects/ferrymediaserver/offpmpack.json";
@@ -213,8 +213,8 @@ void test2 () {
       ifs.seekg(0, ios::beg);
       ffjsonStr.assign((istreambuf_iterator<char>(ifs)),
                        istreambuf_iterator<char>());
-      FFJSON ffo(ffjsonStr);
-      ffo["ferryframes"].setEFlag(FFJSON::B64ENCODE);
+      Txj ffo(ffjsonStr);
+      ffo["ferryframes"].setEFlag(Txj::B64ENCODE);
       string* s = new string(ffo.stringify(true));
       cout << *s << endl;
       s->append(":)");
@@ -227,10 +227,10 @@ void test2 () {
 
 void test3 () {
    cout << "===================================================" << endl;
-   cout << "        TestFFJSON test 3 (comparing strings)      " << endl;
+   cout << "        TestTxj test 3 (comparing strings)      " << endl;
    cout << "===================================================" << endl;
    
-   FFJSON sample("file://sample.ffjson");
+   Txj sample("file://sample.ffjson");
    if ((int) sample["donkeys"] < 4) {
       cout << "alert: my donkey is missing" << endl;
    }
@@ -242,22 +242,22 @@ void test3 () {
 
 void test4 () {
    cout << "===================================================" << endl;
-   cout << "			TestFFJSON test 4 (testing links)		   " << endl;
+   cout << "			TestTxj test 4 (testing links)		   " << endl;
    cout << "===================================================" << endl;
-   FFJSON f("file://linksSample.ffjson");
-   map<string,FFJSON*>* emln = f["obj1"].val.pairs;
+   Txj f("file://linksSample.ffjson");
+   map<string,Txj*>* emln = f["obj1"].val.pairs;
    typedef const char* ccp;
    if (emln->find(string("127.0.0.2"))!=emln->end()) {
-      FFJSON* ffemln = (*emln)["127.0.0.2"];
-      FFJSON::Link* link =
-         ffemln->getFeaturedMember(FFJSON::FM_LINK).link;
+      Txj* ffemln = (*emln)["127.0.0.2"];
+      Txj::Link* link =
+         ffemln->getFeaturedMember(Txj::FM_LINK).link;
       const char* linkName=(*link)[0].c_str();
       cout << "127.0.0.2 is link to " << linkName << endl;
    }
    cout << (const char*)f["obj1"]["127.0.0.2"]["rootdir"] << endl;
    cout << f << endl;
    cout << f["things"]["car"][0] << endl;
-   FFJSON& ff = f["things"]["car"][1];
+   Txj& ff = f["things"]["car"][1];
    ff.addLink(f, "users.gowtham.things.1");
    cout << f << endl;
    cout << "%TEST_PASSED%" << endl;
@@ -265,9 +265,9 @@ void test4 () {
 
 void test5 () {
    cout << "===================================================" << endl;
-   cout << "		TestFFJSON test 5 (testing extensions)		   " << endl;
+   cout << "		TestTxj test 5 (testing extensions)		   " << endl;
    cout << "===================================================" << endl;
-   FFJSON f("file://ExtensionTest.ffjson");
+   Txj f("file://ExtensionTest.ffjson");
    cout << f.prettyString() << endl;
    
    cout << "Marks[0]['Maths']: " << f["Marks"][0]["Maths"].prettyString()
@@ -276,31 +276,31 @@ void test5 () {
    cout << "StudentsMarks['Gowtham']['Maths']: "
    << f["School"]["Class1"]["StudentsMarks"]["Gowtham"]["Maths"].prettyString()
    << endl;
-   FFJSON f2(f.prettyString());
+   Txj f2(f.prettyString());
    cout << f2.prettyString() << endl;
    
-   FFJSON f3(f2);
+   Txj f3(f2);
    cout << "f3 StudentsMarks['Gowtham']['Maths']: "
    << f3["School"]["Class1"]["StudentsMarks"]["Gowtham"]["Maths"].prettyString()
    << endl;
-   FFJSON f4(f2.stringify());
+   Txj f4(f2.stringify());
    cout << f4.stringify() << endl;
 }
 
 void test6 () {
    cout << "===================================================" << endl;
-   cout << "	TestFFJSON test 6 (testing data type sizes)		" << endl;
+   cout << "	TestTxj test 6 (testing data type sizes)		" << endl;
    cout << "===================================================" << endl;
-   map<string, FFJSON*> m;
-   pair<string, FFJSON*> p(string("gowtham"), (FFJSON*) NULL);
+   map<string, Txj*> m;
+   pair<string, Txj*> p(string("gowtham"), (Txj*) NULL);
    cout << &p.first << endl;
    m.insert(p);
    cout << &(*m.find("gowtham")) << endl;
    cout << &(*m.find("gowtham")) << endl;
    int i;
-   FFJSON f;
+   Txj f;
    vector<string*> v;
-   map<string, FFJSON*>::iterator it;
+   map<string, Txj*>::iterator it;
    cout << "map:" << sizeof (m) << endl;
    cout << "int:" << sizeof (i) << endl;
    cout << "ffjson:" << sizeof (f) << endl;
@@ -314,35 +314,35 @@ void test6 () {
 
 void test7 () {
    cout << "===================================================" << endl;
-   cout << "	TestFFJSON test 7 (testing MultiLineArray)		" << endl;
+   cout << "	TestTxj test 7 (testing MultiLineArray)		" << endl;
    cout << "===================================================" << endl;
-   FFJSON f("file://MultiLineArray.ffjson");
+   Txj f("file://MultiLineArray.ffjson");
    string sF = f.prettyString();
    cout << sF << endl;
-   FFJSON f2(sF);
+   Txj f2(sF);
    string sF2 = f2.stringify();
    cout << f2 << endl;
-   FFJSON f3(sF2);
+   Txj f3(sF2);
    string sF3 = f3.prettyString();
    cout << sF3 << endl;
-   FFJSON f4(sF3);
+   Txj f4(sF3);
    string sF4 = f4.stringify();
    cout << sF4 << endl;
-   FFJSON f5(sF4);
+   Txj f5(sF4);
    string sF5 = f5.prettyString();
    cout << sF5 << endl;
 }
 
 void test8 () {
    cout << "===================================================" << endl;
-   cout << "           TestFFJSON test 8 sample.ffjson         " << endl;
+   cout << "           TestTxj test 8 sample.ffjson         " << endl;
    cout << "===================================================" << endl;
-   FFJSON f("file://example.json");
+   Txj f("file://example.json");
    cout << f.prettyString() << endl;
-   FFJSON f2(f.prettyString());
+   Txj f2(f.prettyString());
    string sF2 = f2.stringify();
    cout << f2 << endl;
-   FFJSON f3(sF2);
+   Txj f3(sF2);
    string sF3 = f3.prettyString();
    cout << sF3 << endl;
    
@@ -352,7 +352,7 @@ void test9 () {
    cout << "===================================================" << endl;
    cout << "						erase test					" << endl;
    cout << "===================================================" << endl;
-   FFJSON f("{}");
+   Txj f("{}");
    f["cameras"].erase(string("cam"));
    
 }
@@ -366,16 +366,16 @@ void test10 () {
    cout << "===================================================" << endl;
    cout << "				 typecast   test					" << endl;
    cout << "===================================================" << endl;
-   FFJSON f("{}");
+   Txj f("{}");
    f["a"] = *(new timespec());
    timespec& t = (timespec&) f["a"];
-   FFJSON& ff = f;
+   Txj& ff = f;
    timespec& tt = (timespec&) ff["a"];
    tt.tv_sec = 'a';
    tt.tv_nsec = 'b';
    cout << ff << endl;
    cout << "parsing string" << endl;
-   FFJSON f3(ff.prettyString());
+   Txj f3(ff.prettyString());
    cout << f3 << endl;
    timespec& t3 = (timespec&) f3["a"];
    cout << (char) t3.tv_sec << "," << (char) t3.tv_nsec << endl;
@@ -385,9 +385,9 @@ void test11 () {
    cout << "===================================================" << endl;
    cout << "		subscript operator exection flow			" << endl;
    cout << "===================================================" << endl;
-   FFJSON f("{}");
+   Txj f("{}");
    f["a"]["b"] = 2;
-   FFJSON& b = f["a"]["b"];
+   Txj& b = f["a"]["b"];
    int bb = (int) f["a"]["b"];
    if (f["b"]) {
       cout << "itWontPrint" << endl;
@@ -398,15 +398,15 @@ void test12 () {
    cout << "===================================================" << endl;
    cout << "					update query					" << endl;
    cout << "===================================================" << endl;
-   FFJSON f("{necktwi:{things:[{id:0}]}}");
+   Txj f("{necktwi:{things:[{id:0}]}}");
    int j = 10;
    //while (j) {
       cout << "Creating new answer object: " << endl;
-      FFJSON tf("{necktwi:{things:[{name:\"batman\"}]}}");
-      FFJSON tf2("{necktwi:{things:[{name:?}]}}");
+      Txj tf("{necktwi:{things:[{name:\"batman\"}]}}");
+      Txj tf2("{necktwi:{things:[{name:?}]}}");
       static FerryTimeStamp ft;
-      FFJSON ao(f);
-      FFJSON* ff = f.answerObject(&tf,NULL,ft, &ao);
+      Txj ao(f);
+      Txj* ff = f.answerObject(&tf,NULL,ft, &ao);
       //ft.update();
       if(!ff)return;
       cout << "res: " << *ff << endl;
@@ -422,20 +422,20 @@ void test13 () {
    cout << "===================================================" << endl;
    cout << "                       save file					      " << endl;
    cout << "===================================================" << endl;
-   FFJSON fa(FFJSON::ARRAY);
+   Txj fa(Txj::ARRAY);
    fa[0]=1;
-   FFJSON f("file://saveFileSample.ffjson|OBJECT");
+   Txj f("file://saveFileSample.ffjson|OBJECT");
    f["test"]="OK";
    //f["obj4"]["nestedFile"]["test"]="OK";
-   FFJSON pvh;
+   Txj pvh;
    pvh = &f["vh"]["obj6"];
    pvh["users"]["test"]="OK";
    f["txoTest"]["test"]="OK";
-   f["txoTest"].clearEFlag(FFJSON::FILE);
+   f["txoTest"].clearEFlag(Txj::FILE);
    cout << f << endl;
    f.save();
-   // FFJSON ff("file://saveFileSample.ffjson");
-   // FFJSON& ln = ff["vh"]["obj5"]["things"][].
+   // Txj ff("file://saveFileSample.ffjson");
+   // Txj& ln = ff["vh"]["obj5"]["things"][].
    //    addLink(ff["vh"]["obj5"], "users.gowtham.things.0");
    // if (!ln)
    //    delete &ln;
@@ -447,12 +447,12 @@ void test14 () {
    cout << "===================================================" << endl;
    cout << "                       leak test					      " << endl;
    cout << "===================================================" << endl;
-   FFJSON f("file:///home/Necktwi/workspace/ferryfair/config.ffjson");
+   Txj f("file:///home/Necktwi/workspace/ferryfair/config.ffjson");
    cout << f << endl;
 }
 
 void test15 () {
-   FFJSON f("file:///home/Necktwi/workspace/ferryfair/config.ffjson");
+   Txj f("file:///home/Necktwi/workspace/ferryfair/config.ffjson");
    cout << f << endl;
 }
 
@@ -473,7 +473,7 @@ void test18 () {
    cout << "===================================================" << endl;
    cout << "                       set test					      " << endl;
    cout << "===================================================" << endl;
-   FFJSON f("{1, 2, 3, 3}");
+   Txj f("{1, 2, 3, 3}");
    cout << f << endl;
 }
 
@@ -487,7 +487,7 @@ void test19 () {
    //Test_& t4 = testFunc1();
 }
 
-FFJSON t;
+Txj t;
 void test20 () {
    cout << "===================================================" << endl;
    cout << "                       StressTest				      " << endl;
@@ -515,7 +515,7 @@ void test20 () {
 
 void test21 () {
    cout << t["a1"][666]["c8"] << endl;
-   FFJSON t2;
+   Txj t2;
    (int)t2["id"]==1;
    cout << t2 << endl;
 }
@@ -553,13 +553,13 @@ void test23 () {
    cout << "                       char[] test				      " << endl;
    cout << "===================================================" << endl;
 	char un[48]= "gowtham";
-	FFJSON fun;
+	Txj fun;
 	fun= un;
 	cout << fun << endl;
 }
 
 int main (int argc, char** argv) {
-   cout << "%SUITE_STARTING% TestFFJSON" << endl;
+   cout << "%SUITE_STARTING% TestTxj" << endl;
    cout << "%SUITE_STARTED%" << endl;
    
    FerryTimeStamp ftsStart;
@@ -570,57 +570,57 @@ int main (int argc, char** argv) {
    ftsSuiteStart.update();
 
 /*
-   cout << "%TEST_STARTED% test1 (TestFFJSON)" << endl;
+   cout << "%TEST_STARTED% test1 (TestTxj)" << endl;
    ftsStart.update();
    test1();
    ftsEnd.update();
    ftsDiff = ftsEnd-ftsStart;
    cout << "%TEST_FINISHED% time=" << ftsDiff <<
-      " test1 (TestFFJSON)" << endl;
+      " test1 (TestTxj)" << endl;
 
-   cout << "%TEST_STARTED% test2 (TestFFJSON)\n" << endl;
+   cout << "%TEST_STARTED% test2 (TestTxj)\n" << endl;
    ftsStart.update();
    test2();
    ftsEnd.update();
    ftsDiff = ftsEnd-ftsStart;
-   cout << "%TEST_FINISHED% time=" << ftsDiff << " test2 (TestFFJSON)" << endl;
+   cout << "%TEST_FINISHED% time=" << ftsDiff << " test2 (TestTxj)" << endl;
    
-   cout << "%TEST_STARTED% test3 (TestFFJSON)\n" << endl;
+   cout << "%TEST_STARTED% test3 (TestTxj)\n" << endl;
    ftsStart.update();
    test3();
    ftsEnd.update();
    ftsDiff = ftsEnd-ftsStart;
    cout << "%TEST_FINISHED% time=" << ftsDiff << " test3 " << endl;
 
-   cout << "%TEST_STARTED% test4 (TestFFJSON)\n" << endl;
+   cout << "%TEST_STARTED% test4 (TestTxj)\n" << endl;
    ftsStart.update();
    test4();
    ftsEnd.update();
    ftsDiff = ftsEnd-ftsStart;
    cout << "%TEST_FINISHED% time=" << ftsDiff << " test4 " << endl;
 
-   cout << "%TEST_STARTED% test5 (TestFFJSON)\n" << endl;
+   cout << "%TEST_STARTED% test5 (TestTxj)\n" << endl;
    ftsStart.update();
    test5();
    ftsEnd.update();
    ftsDiff = ftsEnd-ftsStart;
    cout << "%TEST_FINISHED% time=" << ftsDiff << " test5 " << endl;
    
-   cout << "%TEST_STARTED% test6 (TestFFJSON)\n" << endl;
+   cout << "%TEST_STARTED% test6 (TestTxj)\n" << endl;
    ftsStart.update();
    test6();
    ftsEnd.update();
    ftsDiff = ftsEnd-ftsStart;
    cout << "%TEST_FINISHED% time=" << ftsDiff << " test6 " << endl;
    
-   cout << "%TEST_STARTED% test7 (TestFFJSON)\n" << endl;
+   cout << "%TEST_STARTED% test7 (TestTxj)\n" << endl;
    ftsStart.update();
    test7();
    ftsEnd.update();
    ftsDiff = ftsEnd-ftsStart;
    cout << "%TEST_FINISHED% time=" << ftsDiff << " test7 " << endl;
    
-   cout << "%TEST_STARTED% test8 (TestFFJSON)\n" << endl;
+   cout << "%TEST_STARTED% test8 (TestTxj)\n" << endl;
    ftsStart.update();
    test8();
    ftsEnd.update();

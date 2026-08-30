@@ -35,7 +35,7 @@ int main (int argc, char** argv) {
     vector<map<string,int>::iterator>::iterator ititmStrInt=vStrIntIt.begin();
     ititmStrInt++;
     cout<<(*ititmStrInt)->first<<endl;
-    MyStruct mystruct((void*)new FFJSON(),sizeof(FFJSON));
-    FFJSON& i=(FFJSON&)mystruct;
+    MyStruct mystruct((void*)new Txj(),sizeof(Txj));
+    Txj& i=(Txj&)mystruct;
     cout<<i<<endl;
 }
