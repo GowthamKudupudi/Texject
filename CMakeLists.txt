@@ -99,6 +99,9 @@ include_directories (
    "../ferrybase"
 )
 link_directories("${CMAKE_INSTALL_FULL_LIBDIR}")
+if (macOS)
+   link_directories(/opt/local/lib)
+endif()
 if(CMAKE_CONFIGURATION_TYPES)
    link_directories("../ferrybase/${BUILD_TARGET}/$(ConfigurationName)")
    link_directories("../logger/${BUILD_TARGET}/$(ConfigurationName)")
