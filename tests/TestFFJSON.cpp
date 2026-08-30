@@ -548,6 +548,16 @@ void test22 () {
    //free(cs);
 }
 
+void test23 () {
+   cout << "===================================================" << endl;
+   cout << "                       char[] test				      " << endl;
+   cout << "===================================================" << endl;
+	char un[48]= "gowtham";
+	FFJSON fun;
+	fun= un;
+	cout << fun << endl;
+}
+
 int main (int argc, char** argv) {
    cout << "%SUITE_STARTING% TestFFJSON" << endl;
    cout << "%SUITE_STARTED%" << endl;
@@ -644,14 +654,14 @@ int main (int argc, char** argv) {
    ftsEnd.update();
    ftsDiff = ftsEnd - ftsStart;
    cout << "%TEST_FINISHED% time=" << ftsDiff << " test12 " << endl;
-*/
+
    cout << "%TEST_STARTED% test13\n" << endl;
    ftsStart.update();
    test13();
    ftsEnd.update();
    ftsDiff = ftsEnd - ftsStart;
    cout << "%TEST_FINISHED% time=" << ftsDiff << " test13 " << endl;
-/*
+
    cout << "%TEST_STARTED% test15\n" << endl;
    ftsStart.update();
    test15();
@@ -708,7 +718,14 @@ int main (int argc, char** argv) {
    ftsDiff = ftsEnd - ftsStart;
    cout << "%TEST_FINISHED% time=" << ftsDiff << " test22" << endl;
 */
-   ftsSuiteEnd.update();
+   cout << "%TEST_STARTED% test23" << endl;
+   ftsStart.update();
+   test23();
+   ftsEnd.update();
+   ftsDiff = ftsEnd - ftsStart;
+   cout << "%TEST_FINISHED% time=" << ftsDiff << " test23" << endl;
+
+	ftsSuiteEnd.update();
    ftsDiff = ftsSuiteEnd-ftsSuiteStart;
    cout << "%SUITE_FINISHED% time=" << ftsDiff << endl;
 
