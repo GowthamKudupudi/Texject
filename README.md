@@ -1,5 +1,5 @@
 # Texject
-Fast C++ JSON parser. With subscript operator in C++, `[]`, it serves more than just JSON. `Texject` is coined from "text object". Texjects are JSON like 
+Fast C++ JSON parser. With subscript operator in C++, `libtxj` serves more than JSON. `Texject` is coined from "text object". Texjects are JSON like 
 data files with extensions `.txj`, `.obj.txj`, `.arr.txj`, `.set.txj`, 
 `.oob.txj`, `.num.txj`, `.str.txj` etc.
 - `example.txj`
@@ -24,8 +24,6 @@ lastName: "Doe"
   that can not be JSONed are cleanly discarded.
 - Its fast, lite and thread safe!
 
-I recursively hacked it to extract as many features as I could and I will continue till it can!
-
 ## Parsing simple json:
 - simple.json:
 ```JSON
@@ -33,7 +31,7 @@ I recursively hacked it to extract as many features as I could and I will contin
 	{"firstName": "John", "lastName": "Doe"}, 
 	{"firstName": "Anna", "lastName": "Smith"},
 	{"firstName": "Peter", "lastName": "Jones"}
-],
+ ],
  "employeeCount": 3,
  "arePermanent": true
 }
@@ -47,30 +45,59 @@ int main () {
 	Txj_& employees= comp["employees"];
 	Txj_& Emp1= employees[0];
 	cout<< "Employee 1: "<< Emp1["firstName"]<< " "<< Emp1["lastName"]<< endl;
-	
-	//1st argument should be given 'true' for JSON string else it gives Texject
-	string Emp2= employees[1].stringify(true);
-	cout<< "Employee 2: "<< Emp2<< endl;
-
-	string Emp3= employees[2].prettyString(true);
-	cout<< "Employee 3: "<< Emp3<< endl;
-	
-	if ((int)comp["employeeCount"]==3) {
-		employees[employees.size].init(
-			"{firstName: \"Gowtham\", lastName: \"Kudupdui\"}");
-		comp["employeeCount"]= employees.size;
-	}
-	comp.save();
 	return 0;
 }
 ```
 - Output:
 ```
 Employee 1: John Doe
+```
+### Print back in JSON
+- C++:
+```C++
+//1st argument should be given 'true' for JSON string else it gives Texject
+string Emp2= employees[1].stringify(true);
+cout<< "Employee 2: "<< Emp2<< endl;
+```
+- Output:
+```
 Employee 2: {"firstName":"Anna","lastName":"Smith"}
+```
+### Pretty print JSON
+```C++
+string Emp3= employees[2].prettyString(true);
+cout<< "Employee 3: "<< Emp3<< endl;
+```
+- Output:
+```
 Employee 3: {
 	"firstName": "Peter",
 	"lastName": "Jones"
+}
+```
+### Modify and save it
+- C++:
+```C++
+// adding new employee if employeeCount is 3 and update employee count
+if ((int)comp["employeeCount"]==3) {
+	employees[employees.size].init(
+		"{firstName: \"Gowtham\", lastName: \"Kudupdui\"}");
+	comp["employeeCount"]= employees.size;
+}
+// save the modified `comp` texject to its file
+comp.save();
+```
+- `./tests/data/simple.json`:
+```JSON
+{
+	"employees": [
+		{"firstName": "John", "lastName": "Doe"}, 
+		{"firstName": "Anna", "lastName": "Smith"},
+		{"firstName": "Peter", "lastName": "Jones"},
+		{"firstName": "Gowtham", "lastName": "Kudupudi"}
+	],
+	"employeeCount": 4,
+	"arePermanent": true
 }
 ```
 
@@ -140,7 +167,9 @@ Sports he play: {"cricket", "badminton", "tt"}
 
 ## Build and Install
 ```
-git clone https://github.com/gowthamkudupudi/Texject.git
+git --depth=1 -b clang clone https://github.com/gowthamkudupudi/ferrybase.git
+git --depth=1 clone https://github.com/gowthamkudupudi/logger.git
+git --depth=1 clone https://github.com/gowthamkudupudi/Texject.git
 cd Texject
 mkdir build
 cmake -G "Unix Makefiles" -DBUILD_TESTING=1 -B build
@@ -155,3 +184,6 @@ sudo make install
 
 ## Linker option
 `-ltxj`
+
+
+I recursively hacked it to extract as many features as I could and I will continue till it can!

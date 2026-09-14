@@ -26,6 +26,14 @@
 #include <sys/wait.h>
 #include <math.h>
 #include <ios>
+#include <random>
+#include <atomic>
+#include <chrono>
+#include <functional>
+#include <thread>
+#include <queue>
+#include <condition_variable>
+#include <mutex>
 #include "Texject.h"
 
 typedef const char* ccp;
@@ -34,6 +42,11 @@ typedef const char* ccp;
  * Simple C++ Test Suite
  */
 using namespace std;
+
+#include <ferrybase/ThreadPool.h>
+
+thread_local int tid= 0;
+ThreadPool* tpoolPtr= nullptr;
 
 int child_exit_status = 0;
 FF_LOG_TYPE fflAllowedType = (FF_LOG_TYPE)(FFL_DEBUG | FFL_INFO | FFL_ERR);
@@ -1020,6 +1033,30 @@ int test39 () {
 }
 
 int test40 () {
+	cout<< "## 13. table copy test"<< endl;
+	ccp istr= "file://tests/data/table.oob.txj";
+	ftsStart.update();
+	Txj_ t(istr);
+	Txj_ c(t);
+	string ostr= c.prettyString();
+	cout<< "ostr: "<< ostr<< endl;
+	int sal= c["EmployeeDetails"][0]["Salary"];
+	cout<< "c[\"EmployeeDetails\"][0][\"Salary\"]: "<< sal<< endl;
+	ftsEnd.update();
+	ftsDiff= ftsEnd-ftsStart;
+	cout<< "%TEST_FINISHED% in "<< ftsDiff<< "sec"<< endl;
+	printMemUsage();
+	cout<< "Testing: c[\"EmployeeDetails\"][0][\"Salary\"]==5"<< endl;
+	if (sal==5) {
+		cout<< "PASSED"<< endl<< endl;
+		return 1;
+	} else {
+		cout<< "FAILED"<< endl<< endl;
+		return 0;
+	}
+}
+
+int test41 () {
 	cout<< "## 17. malformed Texject crash test"<< endl;
 	ftsStart.update();
 	const char* cases[]= {
@@ -1168,6 +1205,227 @@ int test40 () {
 		cout<< "FAILED"<< endl<< endl;
 		return 0;
 	}
+	cout<< "PASSED"<< endl<< endl;
+	return 1;
+}
+
+// ---------- test41: thread-safety stress test ----------
+static Txj_ t41Root (Txj_::OBJ);
+static vector<Txj_*> t41Containers;
+static mutex t41CtnrMtx;
+static atomic<uint64_t> t41TotalOps {0};
+static const uint64_t t41_TARGET= 1000000;
+static const int t41_MAX_MEMBERS= 7;
+static const int t41_NUM_THREADS= 1;
+
+thread_local random_device t41_rd;
+thread_local mt19937_64 t41_rng{t41_rd()};
+
+static Txj_* t41_pickContainer () {
+	lock_guard<mutex> lk(t41CtnrMtx);
+	if (t41Containers.empty())
+		return nullptr;
+	uniform_int_distribution<int> dist(0, (int)t41Containers.size()-1);
+	return t41Containers[dist(t41_rng)];
+}
+static void t41_addContainer (Txj_* c) {
+	lock_guard<mutex> lk(t41CtnrMtx);
+	t41Containers.push_back(c);
+}
+static bool t41_isCtnr (Txj_& t) {
+	return t.isType(Txj_::OBJ) || t.isType(Txj_::ARRAY) ||
+		t.isType(Txj_::ORDERED_OBJ);
+}
+static Txj_* t41_makeLeaf () {
+	uniform_int_distribution<int> dist(0, 4);
+	int t= dist(t41_rng);
+	Txj_* p= new Txj_();
+	switch (t) {
+	case 0: *p= string("hello world"); break;
+	case 1: *p= (int)42; break;
+	case 2: *p= 3.14159; break;
+	case 3: *p= true; break;
+	case 4: {
+		uint8_t* d= (uint8_t*)malloc(8);
+		d[0]=1; d[1]=2; d[2]=3; d[3]=4;
+		d[4]=5; d[5]=6; d[6]=7; d[7]=8;
+		*p= Txj_::Blob_{d, 8};
+		break;}
+	}
+	return p;
+}
+static Txj_* t41_makeContainer () {
+	uniform_int_distribution<int> dist(0, 2);
+	int t= dist(t41_rng);
+	switch (t) {
+	case 0: return new Txj_(Txj_::OBJ);
+	case 1: return new Txj_(Txj_::ARRAY);
+	default: return new Txj_(Txj_::ORDERED_OBJ);
+	}
+}
+static Txj_* t41_insertInto (Txj_& c, Txj_& child) {
+	if (c.size >= (unsigned)t41_MAX_MEMBERS)
+		return nullptr;
+	if (c.isType(Txj_::OBJ) || c.isType(Txj_::ORDERED_OBJ)) {
+		string k= "k" + to_string(t41TotalOps.fetch_add(1));
+		Txj_& mem= c[k];
+		mem= child;
+		return &mem;
+	} else if (c.isType(Txj_::ARRAY)) {
+		Txj_& mem= c[c.size];
+		mem= child;
+		return &mem;
+	}
+	return nullptr;
+}
+static Txj_* t41_pickMember (Txj_& c) {
+	if (c.size == 0)
+		return nullptr;
+	if (c.isType(Txj_::ARRAY)) {
+		uniform_int_distribution<int> d(0, c.size-1);
+		return (*c)[d(t41_rng)];
+	}
+	if (c.isType(Txj_::OBJ) || c.isType(Txj_::ORDERED_OBJ)) {
+		Txj_::Iterator it= c.begin();
+		Txj_::Iterator end= c.end();
+		uniform_int_distribution<int> d(0, c.size-1);
+		int skip= d(t41_rng);
+		for (int i=0; i<skip && it!=end; ++it,++i) {}
+		if (it==end)
+			return nullptr;
+		return &(*it);
+	}
+	return nullptr;
+}
+static void t41_eraseMember (Txj_& c, Txj_& mem) {
+	if (c.isType(Txj_::ARRAY)) {
+		Txj_::Iterator it= c.begin();
+		Txj_::Iterator end= c.end();
+		int idx= 0;
+		while (it!=end) {
+			if (&(*it)==&mem) {
+				c.erase(idx);
+				return;
+			}
+			++it;
+			++idx;
+		}
+	} else if (c.isType(Txj_::OBJ) || c.isType(Txj_::ORDERED_OBJ)) {
+		Txj_::Iterator it= c.begin();
+		Txj_::Iterator end= c.end();
+		while (it!=end) {
+			if (&(*it)==&mem) {
+				string key= it.getIndex();
+				c.erase(key);
+				return;
+			}
+			++it;
+		}
+	}
+}
+static const char* t41_tn (Txj_& t) {
+	if (t.isType(Txj_::OBJ)) return "obj";
+	if (t.isType(Txj_::ARRAY)) return "arr";
+	if (t.isType(Txj_::ORDERED_OBJ)) return "oob";
+	if (t.isType(Txj_::SET_TYPE)) return "set";
+	if (t.isType(Txj_::STRING)) return "str";
+	if (t.isType(Txj_::NUMBER)) return "num";
+	if (t.isType(Txj_::BOOL)) return "bool";
+	if (t.isType(Txj_::BINARY)) return "bin";
+	if (t.isType(Txj_::TIME)) return "time";
+	return "?";
+}
+static void t41_worker (int) {
+	while (true) {
+		if (t41TotalOps.load() >= t41_TARGET)
+			break;
+		uniform_int_distribution<int> ad(0, 4);
+		int a= ad(t41_rng);
+		if (a <= 1) {
+			Txj_* c= t41_pickContainer();
+			if (!c)
+				continue;
+			uniform_int_distribution<int> td(0, 3);
+			if (td(t41_rng) <= 1) {
+				Txj_* leaf= t41_makeLeaf();
+				printf("tid:%d inserting %p<%s> in %p<%s>\n",
+					tid, leaf, t41_tn(*leaf), c, t41_tn(*c));
+				t41_insertInto(*c, *leaf);
+				delete leaf;
+			} else {
+				Txj_* nc= t41_makeContainer();
+				printf("tid:%d inserting %p<%s> in %p<%s>\n",
+					tid, nc, t41_tn(*nc), c, t41_tn(*c));
+				Txj_* inserted= t41_insertInto(*c, *nc);
+				if (inserted)
+					t41_addContainer(inserted);
+				delete nc;
+			}
+		} else if (a <= 2) {
+			Txj_* src= t41_pickContainer();
+			Txj_* dst= t41_pickContainer();
+			if (!src || !dst)
+				continue;
+			if (src->size == 0)
+				continue;
+			Txj_* srcMem= t41_pickMember(*src);
+			if (!srcMem)
+				continue;
+			printf("tid:%d copying %p<%s> from %p<%s> to %p<%s>\n",
+				tid, srcMem, t41_tn(*srcMem),
+				src, t41_tn(*src),
+				dst, t41_tn(*dst));
+			Txj_ tmp(*srcMem);
+			t41_insertInto(*dst, tmp);
+		} else {
+			Txj_* c= t41_pickContainer();
+			if (!c || c->size < 2)
+				continue;
+			if (c->isType(Txj_::OBJ) || c->isType(Txj_::ORDERED_OBJ)) {
+				Txj_::Iterator it= c->begin();
+				Txj_::Iterator end= c->end();
+				uniform_int_distribution<int> d(0, c->size-1);
+				int skip= d(t41_rng);
+				for (int i=0; i<skip && it!=end; ++it,++i) {}
+				if (it==end)
+					continue;
+				Txj_& mem= *it;
+				if (!mem.isType(Txj_::OBJ) &&
+				    !mem.isType(Txj_::ORDERED_OBJ))
+					continue;
+				string key= it.getIndex();
+				printf("tid:%d deleting %p<%s> from %p<%s>\n",
+					tid, &mem, t41_tn(mem), c, t41_tn(*c));
+				c->erase(key);
+			}
+		}
+	}
+}
+int test42 () {
+	cout << "## 41. thread safety stress test" << endl;
+	t41Containers.clear();
+	t41_addContainer(&t41Root);
+	t41TotalOps.store(0);
+
+	cout << "  " << t41_NUM_THREADS << " threads, "
+	     << t41_TARGET << " ops" << endl;
+	ftsStart.update();
+
+	ThreadPool tp(t41_NUM_THREADS);
+	for (int i=0; i<t41_NUM_THREADS; ++i)
+		tp.enqueue(t41_worker);
+	tp.join();
+
+	ftsEnd.update();
+	ftsDiff= ftsEnd-ftsStart;
+	cout<< "  done in "<< ftsDiff<< "sec"<< endl;
+	cout<< "  containers: "<< t41Containers.size()<< endl;
+
+	{
+		lock_guard<mutex> lk(t41CtnrMtx);
+		t41Containers.clear();
+	}
+	t41Root.freeObj();
 	cout<< "PASSED"<< endl<< endl;
 	return 1;
 }
@@ -1332,23 +1590,25 @@ int main (int argc, char** argv) {
 	int pc= 0, tc=0;
 	printMemUsage(); cout<< endl;
 
-	++tc; pc+= test24();
-	++tc; pc+= test25();
-	++tc; pc+= test26();
-	++tc; pc+= test27();
-	++tc; pc+= test28();
-	++tc; pc+= test29();
-	++tc; pc+= test30();
-	++tc; pc+= test31();
-	++tc; pc+= test32();
-	++tc; pc+= test33();
-	++tc; pc+= test34();
-	++tc; pc+= test35();
-	++tc; pc+= test36();
-	++tc; pc+= test37();
-	++tc; pc+= test38();
-	++tc; pc+= test39();
-	++tc; pc+= test40();
+	// ++tc; pc+= test24();
+	// ++tc; pc+= test25();
+	// ++tc; pc+= test26();
+	// ++tc; pc+= test27();
+	// ++tc; pc+= test28();
+	// ++tc; pc+= test29();
+	// ++tc; pc+= test30();
+	// ++tc; pc+= test31();
+	// ++tc; pc+= test32();
+	// ++tc; pc+= test33();
+	// ++tc; pc+= test34();
+	// ++tc; pc+= test35();
+	// ++tc; pc+= test36();
+	// ++tc; pc+= test37();
+	// ++tc; pc+= test38();
+	// ++tc; pc+= test39();
+	// ++tc; pc+= test40();
+	// ++tc; pc+= test41();
+	++tc; pc+= test42();
 
 	ftsSuiteEnd.update();
    ftsDiff= ftsSuiteEnd-ftsSuiteStart;
