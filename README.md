@@ -6,7 +6,7 @@ easy to read, access, modify, and persist data. It is thread safe!
 
 The name Texject is coined from "text object."
 
-Texjects are JSON-like data files with extensions such as .txj, .obj.txj, .arr.txj, .set.txj, .oob.txj, .num.txj, .str.txj, and more.
+Texjects are JSON-like data files with extensions such as `.txj`, `.obj.txj`, `.arr.txj`, `.set.txj`, `.oob.txj`, `.num.txj`, `.str.txj`, and more.
 
 - `example.txj`:
 ```
@@ -21,10 +21,10 @@ firstName: "John",
 lastName: "Doe"
 ```
 - supported containers:
-  - obj: Object, order of key value pairs not preserver, enclosure: `[]`
-  - oob: OrderedOBject, order of pairs is preserverd, enclosure: `{}`
-  - arr: Array, simple array of Texjects, enclosure: `[]`
-  - set: Set, duplicate members are discarded, enclosure: `{}`
+  - `obj`: Object, order of key value pairs not preserver, enclosure: `[]`
+  - `oob`: OrderedOBject, order of pairs is preserverd, enclosure: `{}`
+  - `arr`: Array, simple array of Texjects, enclosure: `[]`
+  - `set`: Set, duplicate members are discarded, enclosure: `{}`
 - Baic types: numbers, strings, boolean, binaray, xml, time stamps.
 - When serialized to JSON, maximum features are put into JSON and remaining
   that can not be JSONed are cleanly discarded.
