@@ -1,8 +1,14 @@
 # Texject
-Fast C++ JSON parser. With subscript operator in C++, `libtxj` serves more than JSON. `Texject` is coined from "text object". Texjects are JSON like 
-data files with extensions `.txj`, `.obj.txj`, `.arr.txj`, `.set.txj`, 
-`.oob.txj`, `.num.txj`, `.str.txj` etc.
-- `example.txj`
+It's not just a fast C++ JSON parser!
+
+With its intuitive C++ subscript operator, Texject goes beyond JSON to provide an extensible data language and C++ framework for structured data, making it
+easy to read, access, modify, and persist data. It is thread safe!
+
+The name Texject is coined from "text object."
+
+Texjects are JSON-like data files with extensions such as .txj, .obj.txj, .arr.txj, .set.txj, .oob.txj, .num.txj, .str.txj, and more.
+
+- `example.txj`:
 ```
 {
 	firstName: "John",

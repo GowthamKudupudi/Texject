@@ -437,6 +437,8 @@ public:
 	static shared_mutex MtxMapMtx;
 	void lock (); void unlock ();
 	void lockShared () const; void unlockShared () const;
+	bool tryLock ();
+	bool tryLockShared () const;
 	static void prune ();
 	static Txj_* MarkAsUpdatable(string& link, const Txj_& rParent);
 	static Txj_* UnMarkUpdatable(string& link, const Txj_& rParent);

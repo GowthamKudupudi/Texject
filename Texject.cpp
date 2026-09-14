@@ -3345,54 +3345,55 @@ Txj_& Txj_::operator= (Txj_* f) {
 
 void Txj_::lock () {
 	MtxMapMtx.lock_shared();
-	map<const Txj_*, shared_mutex>::iterator it= MtxMap.find(this);
+	shared_mutex& mtx= MtxMap[this];
 	MtxMapMtx.unlock_shared();
-	if (it==MtxMap.end()) {
-		MtxMapMtx.lock();
-		shared_mutex& mtx= MtxMap[this];
-		MtxMapMtx.unlock();
-		mtx.lock();
-	} else {
-		it->second.lock();
-	}
+	mtx.lock();
 }
 
 void Txj_::unlock () {
 	MtxMapMtx.lock_shared();
-	map<const Txj_*, shared_mutex>::iterator it= MtxMap.find(this);
+	shared_mutex& mtx= MtxMap[this];
 	MtxMapMtx.unlock_shared();
-	if (it==MtxMap.end())
-		return;
-	it->second.unlock();
+	mtx.unlock();
 }
 void Txj_::lockShared () const {
 	MtxMapMtx.lock_shared();
-	map<const Txj_*, shared_mutex>::iterator it= MtxMap.find(this);
+	shared_mutex& mtx= MtxMap[this];
 	MtxMapMtx.unlock_shared();
-	if (it==MtxMap.end())
-		return;
-	shared_mutex& mtx= it->second;
 	mtx.lock_shared();
 }
 void Txj_::unlockShared () const {
 	MtxMapMtx.lock_shared();
-	map<const Txj_*, shared_mutex>::iterator it= MtxMap.find(this);
+	shared_mutex& mtx= MtxMap[this];
 	MtxMapMtx.unlock_shared();
-	if (it==MtxMap.end())
-		return;
-	shared_mutex& mtx= it->second;
 	mtx.unlock_shared();
+}
+bool Txj_::tryLock () {
+	MtxMapMtx.lock_shared();
+	shared_mutex& mtx= MtxMap[this];
+	MtxMapMtx.unlock_shared();
+	return mtx.try_lock();
+}
+bool Txj_::tryLockShared () const {
+	MtxMapMtx.lock_shared();
+	shared_mutex& mtx= MtxMap[this];
+	MtxMapMtx.unlock_shared();
+	return mtx.try_lock_shared();
 }
 
 void Txj_::prune () {
-	MtxMapMtx.lock_shared();
+	MtxMapMtx.lock();
 	size_t mpsize= MtxMap.size();
-	MtxMapMtx.unlock_shared();
+	map<const Txj_*, shared_mutex>::iterator it= MtxMap.begin();
 	if (mpsize>50) {
-		MtxMapMtx.lock();
-		MtxMap.clear();
-		MtxMapMtx.unlock();
+		while (it!= MtxMap.end()) {
+			map<const Txj_*, shared_mutex>::iterator iit= it++;
+			if (iit->second.try_lock()) {
+				MtxMap.erase(iit);
+			};
+		}
 	}
+	MtxMapMtx.unlock();
 }
 
 Txj_& Txj_::addLink (const Txj_& PObj, string label) {

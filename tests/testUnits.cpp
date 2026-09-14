@@ -1211,9 +1211,8 @@ int test41 () {
 
 // ---------- test41: thread-safety stress test ----------
 static Txj_ t41Root (Txj_::OBJ);
-static vector<Txj_*> t41Containers;
-static mutex t41CtnrMtx;
 static atomic<uint64_t> t41TotalOps {0};
+static atomic<uint64_t> t41KeyCtr {0};
 static const uint64_t t41_TARGET= 1000000;
 static const int t41_MAX_MEMBERS= 7;
 static const int t41_NUM_THREADS= 1;
@@ -1221,21 +1220,11 @@ static const int t41_NUM_THREADS= 1;
 thread_local random_device t41_rd;
 thread_local mt19937_64 t41_rng{t41_rd()};
 
-static Txj_* t41_pickContainer () {
-	lock_guard<mutex> lk(t41CtnrMtx);
-	if (t41Containers.empty())
-		return nullptr;
-	uniform_int_distribution<int> dist(0, (int)t41Containers.size()-1);
-	return t41Containers[dist(t41_rng)];
-}
-static void t41_addContainer (Txj_* c) {
-	lock_guard<mutex> lk(t41CtnrMtx);
-	t41Containers.push_back(c);
-}
 static bool t41_isCtnr (Txj_& t) {
 	return t.isType(Txj_::OBJ) || t.isType(Txj_::ARRAY) ||
 		t.isType(Txj_::ORDERED_OBJ);
 }
+
 static Txj_* t41_makeLeaf () {
 	uniform_int_distribution<int> dist(0, 4);
 	int t= dist(t41_rng);
@@ -1257,17 +1246,25 @@ static Txj_* t41_makeLeaf () {
 static Txj_* t41_makeContainer () {
 	uniform_int_distribution<int> dist(0, 2);
 	int t= dist(t41_rng);
+	Txj_* p= nullptr;
 	switch (t) {
-	case 0: return new Txj_(Txj_::OBJ);
-	case 1: return new Txj_(Txj_::ARRAY);
-	default: return new Txj_(Txj_::ORDERED_OBJ);
+	case 0: p= new Txj_(Txj_::OBJ);
+		(*p)["seed"]= 42;
+		break;
+	case 1: p= new Txj_(Txj_::ARRAY);
+		(*p)[0]= 42;
+		break;
+	default: p= new Txj_(Txj_::ORDERED_OBJ);
+		(*p)["seed"]= 42;
+		break;
 	}
+	return p;
 }
 static Txj_* t41_insertInto (Txj_& c, Txj_& child) {
 	if (c.size >= (unsigned)t41_MAX_MEMBERS)
 		return nullptr;
 	if (c.isType(Txj_::OBJ) || c.isType(Txj_::ORDERED_OBJ)) {
-		string k= "k" + to_string(t41TotalOps.fetch_add(1));
+		string k= "k" + to_string(t41KeyCtr.fetch_add(1));
 		Txj_& mem= c[k];
 		mem= child;
 		return &mem;
@@ -1278,22 +1275,28 @@ static Txj_* t41_insertInto (Txj_& c, Txj_& child) {
 	}
 	return nullptr;
 }
-static Txj_* t41_pickMember (Txj_& c) {
+static Txj_* t41_pickTxj (Txj_& c, bool container) {
 	if (c.size == 0)
 		return nullptr;
 	if (c.isType(Txj_::ARRAY)) {
 		uniform_int_distribution<int> d(0, c.size-1);
-		return (*c)[d(t41_rng)];
+		Txj_& m= (*c)[d(t41_rng)];
+		if (container && !t41_isCtnr(m))
+			return nullptr;
+		return &m;
 	}
 	if (c.isType(Txj_::OBJ) || c.isType(Txj_::ORDERED_OBJ)) {
 		Txj_::Iterator it= c.begin();
 		Txj_::Iterator end= c.end();
 		uniform_int_distribution<int> d(0, c.size-1);
 		int skip= d(t41_rng);
-		for (int i=0; i<skip && it!=end; ++it,++i) {}
+		for (int i= 0; i<skip && it!=end; ++it,++i) {}
 		if (it==end)
 			return nullptr;
-		return &(*it);
+		Txj_& m= *it;
+		if (container && !t41_isCtnr(m))
+			return nullptr;
+		return &m;
 	}
 	return nullptr;
 }
@@ -1333,7 +1336,30 @@ static const char* t41_tn (Txj_& t) {
 	if (t.isType(Txj_::BOOL)) return "bool";
 	if (t.isType(Txj_::BINARY)) return "bin";
 	if (t.isType(Txj_::TIME)) return "time";
-	return "?";
+	static char buf[16];
+	snprintf(buf, sizeof(buf), "t%d", (int)t.getType());
+	return buf;
+}
+static uint64_t t41_countNodes (Txj_& t) {
+	if (!t41_isCtnr(t))
+		return 1;
+	uint64_t n= 1;
+	if (t.isType(Txj_::ARRAY)) {
+		for (unsigned i=0; i<t.size; ++i) {
+			Txj_& m= (*t)[i];
+			n+= m.isType(Txj_::OBJ)||m.isType(Txj_::ORDERED_OBJ)||
+				m.isType(Txj_::ARRAY)? t41_countNodes(m): 1;
+		}
+	} else {
+		Txj_::Iterator it= t.begin();
+		Txj_::Iterator end= t.end();
+		for (; it!=end; ++it) {
+			Txj_& m= *it;
+			n+= m.isType(Txj_::OBJ)||m.isType(Txj_::ORDERED_OBJ)||
+				m.isType(Txj_::ARRAY)? t41_countNodes(m): 1;
+		}
+	}
+	return n;
 }
 static void t41_worker (int) {
 	while (true) {
@@ -1342,43 +1368,57 @@ static void t41_worker (int) {
 		uniform_int_distribution<int> ad(0, 4);
 		int a= ad(t41_rng);
 		if (a <= 1) {
-			Txj_* c= t41_pickContainer();
+			Txj_* c= t41_pickTxj(t41Root, true);
 			if (!c)
 				continue;
 			uniform_int_distribution<int> td(0, 3);
 			if (td(t41_rng) <= 1) {
 				Txj_* leaf= t41_makeLeaf();
-				printf("tid:%d inserting %p<%s> in %p<%s>\n",
-					tid, leaf, t41_tn(*leaf), c, t41_tn(*c));
-				t41_insertInto(*c, *leaf);
+				printf("tid:%d inserting (%llu)%p<%s> in %p<%s>\n",
+					tid, t41TotalOps.load(), leaf, t41_tn(*leaf),
+					c, t41_tn(*c));
+				if (t41_insertInto(*c, *leaf))
+					t41TotalOps.fetch_add(1);
 				delete leaf;
 			} else {
 				Txj_* nc= t41_makeContainer();
-				printf("tid:%d inserting %p<%s> in %p<%s>\n",
-					tid, nc, t41_tn(*nc), c, t41_tn(*c));
+				printf("tid:%d inserting (%llu)%p<%s> in %p<%s>\n",
+					tid, t41TotalOps.load(), nc, t41_tn(*nc),
+					c, t41_tn(*c));
 				Txj_* inserted= t41_insertInto(*c, *nc);
 				if (inserted)
-					t41_addContainer(inserted);
+					t41TotalOps.fetch_add(2);
 				delete nc;
 			}
 		} else if (a <= 2) {
-			Txj_* src= t41_pickContainer();
-			Txj_* dst= t41_pickContainer();
-			if (!src || !dst)
+			Txj_* src= t41_pickTxj(t41Root, true);
+			if (!src)
 				continue;
-			if (src->size == 0)
+			if (!src->tryLockShared()) {
 				continue;
-			Txj_* srcMem= t41_pickMember(*src);
+			}
+			Txj_* srcMem= t41_pickTxj(*src, false);
+			src->unlockShared();
 			if (!srcMem)
 				continue;
-			printf("tid:%d copying %p<%s> from %p<%s> to %p<%s>\n",
-				tid, srcMem, t41_tn(*srcMem),
+			uint64_t cnt= 1;
+			if (t41_isCtnr(*srcMem)) {
+				cnt= t41_countNodes(*srcMem);
+				if (cnt-1 > 7)
+					continue;
+			}
+			Txj_* dst= t41_pickTxj(t41Root, true);
+			if (!dst)
+				continue;
+			printf("tid:%d copying (%llu)%p<%s> from %p<%s> to %p<%s>\n",
+				tid, t41TotalOps.load(), srcMem, t41_tn(*srcMem),
 				src, t41_tn(*src),
 				dst, t41_tn(*dst));
 			Txj_ tmp(*srcMem);
-			t41_insertInto(*dst, tmp);
+			if (t41_insertInto(*dst, tmp))
+				t41TotalOps.fetch_add(cnt);
 		} else {
-			Txj_* c= t41_pickContainer();
+			Txj_* c= t41_pickTxj(t41Root, true);
 			if (!c || c->size < 2)
 				continue;
 			if (c->isType(Txj_::OBJ) || c->isType(Txj_::ORDERED_OBJ)) {
@@ -1387,25 +1427,34 @@ static void t41_worker (int) {
 				uniform_int_distribution<int> d(0, c->size-1);
 				int skip= d(t41_rng);
 				for (int i=0; i<skip && it!=end; ++it,++i) {}
-				if (it==end)
-					continue;
-				Txj_& mem= *it;
-				if (!mem.isType(Txj_::OBJ) &&
-				    !mem.isType(Txj_::ORDERED_OBJ))
-					continue;
-				string key= it.getIndex();
-				printf("tid:%d deleting %p<%s> from %p<%s>\n",
-					tid, &mem, t41_tn(mem), c, t41_tn(*c));
-				c->erase(key);
+				bool doErase= false;
+				string key;
+				if (it!=end) {
+					Txj_& mem= *it;
+					if (mem.isType(Txj_::OBJ) ||
+					    mem.isType(Txj_::ORDERED_OBJ) ||
+					    mem.isType(Txj_::SET_TYPE)) {
+						key= it.getIndex();
+						printf("tid:%d deleting %p<%s> from %p<%s>\n",
+							tid, &mem, t41_tn(mem), c, t41_tn(*c));
+						doErase= true;
+					}
+				}
+				if (doErase)
+					c->erase(key);
 			}
 		}
 	}
 }
 int test42 () {
-	cout << "## 41. thread safety stress test" << endl;
-	t41Containers.clear();
-	t41_addContainer(&t41Root);
+	cout << "## 42. thread safety stress test" << endl;
 	t41TotalOps.store(0);
+	t41KeyCtr.store(0);
+
+	Txj_* seed= new Txj_(Txj_::OBJ);
+	(*seed)["seed"]= 42;
+	t41_insertInto(t41Root, *seed);
+	delete seed;
 
 	cout << "  " << t41_NUM_THREADS << " threads, "
 	     << t41_TARGET << " ops" << endl;
@@ -1419,12 +1468,6 @@ int test42 () {
 	ftsEnd.update();
 	ftsDiff= ftsEnd-ftsStart;
 	cout<< "  done in "<< ftsDiff<< "sec"<< endl;
-	cout<< "  containers: "<< t41Containers.size()<< endl;
-
-	{
-		lock_guard<mutex> lk(t41CtnrMtx);
-		t41Containers.clear();
-	}
 	t41Root.freeObj();
 	cout<< "PASSED"<< endl<< endl;
 	return 1;
