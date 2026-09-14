@@ -147,13 +147,6 @@ if (BUILD_TESTING)
    message("CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
    add_executable(testUnits
       tests/testUnits.cpp
-      sample.txj
-      linksSample.txj
-      saveFileSample.txj
-      MultiLevelInheritance.txj
-      tests/data/MultiLineArray.oob.txj
-      ExtensionTest.txj
-      UpdateTest.json
       tests/
    )
    target_link_libraries(testUnits txj logger ferrybase)
@@ -164,23 +157,6 @@ if (BUILD_TESTING)
    target_include_directories(testUnits PUBLIC
       ${CMAKE_CURRENT_SOURCE_DIR}
       ${CMAKE_INSTALL_FULL_INCLUDEDIR}/${Umbrella}
-   )
-   add_custom_command(TARGET testUnits PRE_BUILD
-      COMMAND ${CMAKE_COMMAND} -E copy
-      ${CMAKE_CURRENT_SOURCE_DIR}/sample.txj $<TARGET_FILE_DIR:testUnits>
-   )
-   add_custom_command(TARGET testUnits PRE_BUILD
-      COMMAND ${CMAKE_COMMAND} -E copy
-      ${CMAKE_CURRENT_SOURCE_DIR}/linksSample.txj $<TARGET_FILE_DIR:testUnits>
-   )
-   add_custom_command(TARGET testUnits PRE_BUILD
-      COMMAND ${CMAKE_COMMAND} -E copy
-      ${CMAKE_CURRENT_SOURCE_DIR}/saveFileSample.txj $<TARGET_FILE_DIR:testUnits>
-   )
-   add_custom_command(TARGET testUnits PRE_BUILD
-      COMMAND ${CMAKE_COMMAND} -E copy
-      ${CMAKE_CURRENT_SOURCE_DIR}/tests/data/MultiLineArray.oob.txj
-      $<TARGET_FILE_DIR:testUnits>/MultiLineArray.txj
    )
    message("INSTALL_INTERFACE:include/${Umbrella}:"
       $<INSTALL_INTERFACE:include/${Umbrella}>
@@ -197,4 +173,3 @@ if (BUILD_TESTING)
    add_test(test2 IteratorIncrement)
    add_test(test3 test_ambiguity)
 endif()
-

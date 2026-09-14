@@ -3323,6 +3323,14 @@ Txj_& Txj_::operator = (const Txj_& f) {
 	f.lockShared();
 	copy(f, COPY_ALL);
 	f.unlockShared();
+	if (parent) {
+		if (parent->val.setPtr->insert(this).second)
+			++parent->size;
+		else {
+			delete this;
+			return nullTxj;
+		}
+	}
 	return *this;
 }
 
