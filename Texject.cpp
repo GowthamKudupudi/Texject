@@ -22,6 +22,7 @@
 #include <vector>
 #include <map>
 #include <exception>
+#include <execinfo.h>
 #include <algorithm>
 #include <ferrybase/FerryTimeStamp.h>
 #include <ferrybase/myconverters.h>
@@ -131,6 +132,7 @@ void Txj_::copy (const Txj_& orig, COPY_FLAGS cf, TxjPObj* pObj) {
 		flags= 0;
 		unlock();
 	}
+	orig.lockShared();
 	OBJ_TYPE origType= orig.getType();
 	switch (origType) {
 	case NUMBER:
@@ -198,15 +200,14 @@ void Txj_::copy (const Txj_& orig, COPY_FLAGS cf, TxjPObj* pObj) {
 			fm.m_pvpsMapSequence= new vector<ffmap::iterator>();
 			insertFeaturedMember(fm, FM_MAP_SEQUENCE);
 		}
-		unlock();
+		goto copyObj;
 	case OBJ: {
-		lockShared();
+		lock();
+	  copyObj:
 		if (!val.pairs) {
-			unlockShared();lock();
 			setType(origType);
 			val.pairs= new ffmap();
 			size= 0;
-			unlock();lockShared();
 		}
 		FeaturedMember fm= getFeaturedMember(FM_MAP_SEQUENCE);
 		ffmap::iterator i;
@@ -238,26 +239,22 @@ void Txj_::copy (const Txj_& orig, COPY_FLAGS cf, TxjPObj* pObj) {
 			}
 			if (fo && ((cf==COPY_QUERIES && !fo->isQType(QUERY_TYPE::NONE))
 						  || !fo->isType(UNDEFINED))) {
-				unlockShared();lock();
 				pair<ffmap::iterator, bool> prNew= val.
 					pairs->insert(pair<string, Txj_*>(i->first, fo));
 				++size;
 				if (fm.m_pvpsMapSequence)
 					fm.m_pvpsMapSequence->push_back(prNew.first);
-				unlock();lockShared();
 			} else {
 				delete fo;
 			}
 			iterSeq(itVecPtr, i, iMapSeqIndexer, objmap);
 		}
 		if (val.pairs->size()==0) {
-			unlockShared();lock();
 			delete val.pairs;
 			val.pairs= NULL;
 			setType(UNDEFINED);
-			unlock();lockShared();
 		};
-		unlockShared();
+		unlock();
 		break;
 	}
 	case ARRAY: {
@@ -367,6 +364,7 @@ void Txj_::copy (const Txj_& orig, COPY_FLAGS cf, TxjPObj* pObj) {
 		unlock();
 		break;
 	}
+	orig.unlockShared();
 	// if (orig.isEFlagSet(EXTENDED) && !isType(STRING)) {
 	// 	lock();
 	// 	Txj_* pOrigParent= orig.getFeaturedMember(FM_PARENT).m_pParent;
@@ -2172,7 +2170,9 @@ Txj_::OBJ_TYPE Txj_::objectType (string ffjson) {
 }
 
 Txj_& Txj_::operator [] (void) {
+	lock();
 	if (isLink()) {
+		unlock();
 		return (*val.fptr)[];
 	} else if (isType(UNDEFINED)) {
 	  settype:
@@ -2187,6 +2187,7 @@ Txj_& Txj_::operator [] (void) {
 		obj->setType(NEW_SET_MEMBER);
 		obj->val.fptr= this;
 	}
+	unlock();
 	return *obj;
 }
 
@@ -2283,6 +2284,11 @@ Txj_& Txj_::operator [] (const int index) {
 			return ret;
 		} else {
 			unlockShared();lock();
+			if (val.array->size()>index) {
+				Txj_& ret= *((*val.array)[index]);
+				unlock();
+				return ret;
+			}
 			Txj_* f;
 			for (int i=size; i<=index; ++i) {
 				f= new Txj_();
@@ -3351,41 +3357,41 @@ Txj_& Txj_::operator= (Txj_* f) {
 	return *this;
 }
 
-void Txj_::lock () {
+shared_mutex& Txj_::getMtxMapMtx () const {
 	MtxMapMtx.lock_shared();
-	shared_mutex& mtx= MtxMap[this];
+	map<const Txj_*, shared_mutex>::iterator it= MtxMap.find(this);
 	MtxMapMtx.unlock_shared();
+	if (it==MtxMap.end()) {
+		lock_guard<shared_mutex> lk(MtxMapMtx);
+		return MtxMap[this];
+	} else {
+		return it->second;
+	}
+}
+
+void Txj_::lock () const {
+	shared_mutex& mtx= getMtxMapMtx();
 	mtx.lock();
 }
 
-void Txj_::unlock () {
-	MtxMapMtx.lock_shared();
-	shared_mutex& mtx= MtxMap[this];
-	MtxMapMtx.unlock_shared();
+void Txj_::unlock () const {
+	shared_mutex& mtx= getMtxMapMtx();
 	mtx.unlock();
 }
 void Txj_::lockShared () const {
-	MtxMapMtx.lock_shared();
-	shared_mutex& mtx= MtxMap[this];
-	MtxMapMtx.unlock_shared();
+	shared_mutex& mtx= getMtxMapMtx();
 	mtx.lock_shared();
 }
 void Txj_::unlockShared () const {
-	MtxMapMtx.lock_shared();
-	shared_mutex& mtx= MtxMap[this];
-	MtxMapMtx.unlock_shared();
+	shared_mutex& mtx= getMtxMapMtx();
 	mtx.unlock_shared();
 }
-bool Txj_::tryLock () {
-	MtxMapMtx.lock_shared();
-	shared_mutex& mtx= MtxMap[this];
-	MtxMapMtx.unlock_shared();
+bool Txj_::tryLock () const {
+	shared_mutex& mtx= getMtxMapMtx();
 	return mtx.try_lock();
 }
 bool Txj_::tryLockShared () const {
-	MtxMapMtx.lock_shared();
-	shared_mutex& mtx= MtxMap[this];
-	MtxMapMtx.unlock_shared();
+	shared_mutex& mtx= getMtxMapMtx();
 	return mtx.try_lock_shared();
 }
 
@@ -4051,11 +4057,17 @@ void Txj_::erase (string name) {
 	Txj_* fp= this;
 	if (isLink())fp= val.fptr;
 	if (fp->isType(OBJ) || fp->isType(ORDERED_OBJ)) {
+		// find MUST be inside the lock: an unlocked find can return an
+		// iterator to a node another thread erases before we lock, and
+		// dereferencing it below would be a use-after-free
+		fp->lock();
+		ffmap::iterator it= fp->val.pairs->find(name);
+		if (it==fp->val.pairs->end()) {
+			fp->unlock();
+			return;
+		}
 		vector<ffmap::iterator>* fmMapSequence=
 			fp->getFeaturedMember(FM_MAP_SEQUENCE).m_pvpsMapSequence;
-		ffmap::iterator it= fp->val.pairs->find(name);
-		if (it==fp->val.pairs->end())return;
-		fp->lock();
 		if (fmMapSequence) {
 			auto vi= std::find(fmMapSequence->begin(), fmMapSequence->end(), it);
 			if (vi!=fmMapSequence->end()) {
@@ -4071,10 +4083,12 @@ void Txj_::erase (string name) {
 
 void Txj_::erase (int index) {
 	if (isType(ARRAY)) {
-		if (index<size) {
+		lock();
+		if (index<size && (*val.array)[index]) {
 			delete (*val.array)[index];
 			(*val.array)[index]= NULL;
 		}
+		unlock();
 	}
 }
 
@@ -4095,6 +4109,7 @@ uint Txj_::erase (uint start, uint end) {
 
 void Txj_::erase (Txj_* value) {
 	if (isType(OBJ)||isType(ORDERED_OBJ)) {
+		lock();
 		ffmap::iterator i= val.pairs->begin();
 		FeaturedMember fmMapSequence= getFeaturedMember(FM_MAP_SEQUENCE);
 		while (i!=val.pairs->end()) {
@@ -4107,11 +4122,14 @@ void Txj_::erase (Txj_* value) {
 				}
 				delete i->second;
 				val.pairs->erase(i);
+				--size;
 				break;
 			}
 			++i;
 		}
+		unlock();
 	} else if (isType(ARRAY)) {
+		lock();
 		int i= 0;
 		while (i<size) {
 			if ((*val.array)[i]==value) {
@@ -4121,13 +4139,16 @@ void Txj_::erase (Txj_* value) {
 			}
 			++i;
 		}
+		unlock();
 	} else if (isType(SET_TYPE)) {
+		lock();
 		ffset::iterator it= val.setPtr->find(value);
 		if (it!=val.setPtr->end()) {
 			delete *it;
 			val.setPtr->erase(it);
 			--size;
 		}
+		unlock();
 	}
 }
 
@@ -4782,5 +4803,11 @@ int Txj_::save (
 }
 
 bool FFPtrCmp::operator() (const Txj_* a, const Txj_* b) const {
-	return *a<*b;
+	// pointer comparison: comparing *a<*b goes through Txj_'s
+	// `operator int()` conversion, which compares the raw union bytes
+	// (val.number slot) as ints - two different objects with the same
+	// union bytes (e.g. any fresh proxy, which is 0, and a stored 0/false)
+	// were treated as equal, so set insert "deduped" them away and
+	// operator= deleted the live proxy
+	return a<b;
 }

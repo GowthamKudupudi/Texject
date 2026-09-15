@@ -435,10 +435,10 @@ public:
 	};
 	static map<const Txj_*, shared_mutex> MtxMap;
 	static shared_mutex MtxMapMtx;
-	void lock (); void unlock ();
+	shared_mutex& getMtxMapMtx () const;
+	void lock () const; void unlock () const;
 	void lockShared () const; void unlockShared () const;
-	bool tryLock ();
-	bool tryLockShared () const;
+	bool tryLock () const; bool tryLockShared () const;
 	static void prune ();
 	static Txj_* MarkAsUpdatable(string& link, const Txj_& rParent);
 	static Txj_* UnMarkUpdatable(string& link, const Txj_& rParent);

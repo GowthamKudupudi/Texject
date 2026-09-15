@@ -114,7 +114,7 @@ name: "Gowtham",
 "id": 1729,
 isProgrammer: true,
 
-#comment1: "It's a table; '|' is inheritance operator",
+#comment1: "It's a table! '|' is inheritance operator",
 favLang: [
 	"C++", "Javascript", "lisp"
 ],
