@@ -22,7 +22,6 @@
 #include <vector>
 #include <map>
 #include <exception>
-#include <execinfo.h>
 #include <algorithm>
 #include <ferrybase/FerryTimeStamp.h>
 #include <ferrybase/myconverters.h>
@@ -266,7 +265,8 @@ void Txj_::copy (const Txj_& orig, COPY_FLAGS cf, TxjPObj* pObj) {
 		if (val.array==nullptr) {
 			lock();
 			size= 0;
-			this->init("[]");
+			val.array= new vector<Txj_*>();
+			setType(ARRAY);
 			unlock();
 		}
 		lockShared();
@@ -525,6 +525,7 @@ inline bool Txj_::isInitializingChar(char c) {
 void Txj_::init (
 	const string& txj, int* ci, int indent, TxjPObj* pObj
 ) {
+	lock();
 	if (!isType(UNDEFINED)) {
 		freeObj();
 	}
@@ -561,7 +562,7 @@ void Txj_::init (
 				Txj_* obj= new Txj_(txj, &i, nind, &ffpo);
 				if (i>=j) {
 					flErr(TXJ_MAIN, "Error parsing Txj_ at %d\n", i);
-					return;
+					unlock();return;
 				}
 				while (1) {
 					switch (txj[i]) {
@@ -647,14 +648,14 @@ void Txj_::init (
 						goto memobtained;
 					} else {
 						flErr(TXJ_MAIN, "Error parsing Txj_ at %d\n", i);
-						return;
+						unlock();return;
 					}
 				} else if (txji=='{') {
 					if (isType(OBJ)) {
 					  ObjIns:
 						if (&objId==&arrInd) {
 							flErr(TXJ_MAIN, "Error parsing Txj_ at %d\n", i);
-							return;
+							unlock();return;
 						}
 						prNew= val.pairs->find(objId);
 						prNew->second= obj;
@@ -666,7 +667,7 @@ void Txj_::init (
 						if (!obj->isType(UNDEFINED) && !obj->isType(NUL)) {
 							if (&objId!=&arrInd) {
 								flErr(TXJ_MAIN, "Error parsing Txj_ at %d\n", i);
-								return;
+								unlock();return;
 							}
 							pair<ffset::iterator,bool> ret= val.setPtr->insert(obj);
 							if (ret.second) {
@@ -701,7 +702,7 @@ void Txj_::init (
 					}
 				} else {
 					flErr(TXJ_MAIN, "Error parsing Txj_ at %d\n", i);
-					return;
+					unlock();return;
 				}
 				if (arrEnd) {
 					goto backyard;
@@ -790,7 +791,9 @@ void Txj_::init (
 							case STRING:
 								txjStr+= "\"";
 							}}
+							unlock();
 							init(txjStr, NULL, 0, pObj);
+							lock();
 						} else {
 							flWrn(TXJ_MAIN, "Couldn't open %s", path.c_str());
 							ifs.close();
@@ -807,7 +810,7 @@ void Txj_::init (
 		foundKey: {
 				if (!pObj || !pObj->value) {
 					flErr(TXJ_MAIN, "Error parsing Txj_ at %d\n", i);
-					return;
+					unlock();return;
 				}
 				ffmap*& lp= pObj->value->val.pairs;
 				if (!lp) {
@@ -815,7 +818,7 @@ void Txj_::init (
 				} else if (!(pObj->value->isType(OBJ) ||
 								 pObj->value->isType(ORDERED_OBJ))) {
 					flErr(TXJ_MAIN, "Error parsing Txj_ at %d\n", i);
-					return;
+					unlock();return;
 				}
 				trimWhites(buf);
 				trimQuotes(buf);
@@ -854,7 +857,7 @@ void Txj_::init (
 						else if (nind==ind-1) {
 							if (txj[ind]!='"') {
 								flErr(TXJ_MAIN, "Error parsing Txj_ at %d\n", i);
-								return;
+								unlock();return;
 							}
 							break;
 						}
@@ -962,13 +965,13 @@ void Txj_::init (
 			}
 			if (i==j) {
 				flErr(TXJ_MAIN, "Error parsing Txj_ at %d\n", i);
-				return;
+				unlock();return;
 			}
 			size= atoi(txj.c_str()+typeNail);
 			++i;
 			if (size<0 || size>j-i) {
 				flErr(TXJ_MAIN, "Error parsing Txj_ at %d\n", i);
-				return;
+				unlock();return;
 			}
 			val.vptr= (uint8_t*)malloc(size*sizeof(uint8_t));
 			memcpy(val.vptr, txj.c_str()+i, size);
@@ -1065,7 +1068,7 @@ void Txj_::init (
 		case '!': {
 			if (!pObj || !pObj->value) {
 				flErr(TXJ_MAIN, "Error parsing Txj_ at %d\n", i);
-				return;
+				unlock();return;
 			}
 			setType(NUL);
 			pObj->value->setQType(NQUERY);
@@ -1224,6 +1227,7 @@ void Txj_::init (
 			ffpo.symTrVec[l].ln->freeObj();
 		}
 	}
+	unlock();
 }
 
 void Txj_::ReadMultiLinesInContainers(const string& ffjson, int& i,
@@ -2065,7 +2069,18 @@ int Txj_::getIndent (const char* txj, int* ci, int indent) {
 }
 
 Txj_::~Txj_ () {
+	lock();
 	freeObj();
+	unlock();
+	MtxMapMtx.lock_shared();
+	map<const Txj_*, shared_mutex>::iterator it= MtxMap.find(this);
+	MtxMapMtx.unlock_shared();
+	if (it!=MtxMap.end()) {
+		it->second.lock();
+		MtxMapMtx.lock();
+		MtxMap.erase(it);
+		MtxMapMtx.unlock();
+	}
 }
 
 void Txj_::freeObj (bool bAssignment) {
@@ -2277,6 +2292,7 @@ Txj_& Txj_::operator [] (const int index) {
 				while (prf->isLink()) {
 					prf= prf->val.fptr;
 				}
+				unlockShared();
 				return *prf;
 			}
 			Txj_& ret= *((*val.array)[index]);

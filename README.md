@@ -108,13 +108,13 @@ comp.save();
 ```
 
 ## The Texject:
-- `Employee.oob.txj`; oob: OrderedOBject; the order of members preserved
+- `Employee.oob.txj`:
 ```txj
 name: "Gowtham",
 "id": 1729,
 isProgrammer: true,
 
-#comment1: "It's a table! '|' is inheritance operator",
+#comment1: "Its a table! '|' is inheritance operator",
 favLang: [
 	"C++", "Javascript", "lisp"
 ],
@@ -126,7 +126,7 @@ testScore: [[
 	    9,            5,      8
 ]] | [favLang],
 
-#comment2: "its an oob enclosed in [] where as obj(object) is enclosed in {}"
+#comment2: "Its an oob enclosed in [] where as obj(object) is enclosed in {}",
 "address": [
 	"town": "KAKINADA",
 	country: "Bharath"
@@ -134,16 +134,18 @@ testScore: [[
 
 "biography": "
 	He is smart, brilliant, genius, empathetic, creative, connective, patient,
-	handsome, valient, romantic;) After all he made JSON with multi line string!
+	handsome, valient, romantic;) After all he made JSON with multi line string
+	and comments that are stringified only while saving the texject else they
+	are dropped unless printComment argument is set in stringify call.
 ",
 
-#comment3: "its an obj; enclosed in {}; order not preserved"
+#comment3: "Its an obj; enclosed in {}; order not preserved",
 physiology: {
 	iris: "blue",
 	height: "6 foot"
 },
 
-#comment2: "its a set! And comments are not stringified",
+#comment2: "Its a set! Duplicates are dropped!",
 sports: {"cricket", "badminton", "tt"}
 ```
 - C++:
