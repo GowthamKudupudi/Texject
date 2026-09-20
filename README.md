@@ -193,5 +193,9 @@ sudo make install
 ## Linker option
 `-ltxj`
 
-
-I recursively hacked it to extract as many features as I could and I will continue till it can!
+## links
+- In `Employee.oob.txj`, `favLang` in after inheritane operator is a link.
+- When a link is casted it casts the target.
+- When a link is assigned it doesn't effect the target. To assign target via
+  link, use `*favLang= <NewValue>`
+- the subscript operator will return link if its a link.

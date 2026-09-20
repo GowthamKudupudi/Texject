@@ -51,7 +51,7 @@ ThreadPool* tpoolPtr= nullptr;
 
 int child_exit_status = 0;
 FF_LOG_TYPE fflAllowedType = (FF_LOG_TYPE)(FFL_DEBUG | FFL_INFO | FFL_ERR);
-unsigned int fflAllowedBlks = 9|TXJ_MAIN;
+unsigned int fflAllowedBlks = 9|TXJ_MAIN|TXJ_THRDTST;
 FerryTimeStamp ftsStart;
 FerryTimeStamp ftsEnd;
 FerryTimeStamp ftsDiff;
@@ -597,10 +597,9 @@ int test24 () {
 	if ((int)t3==i) {
 		cout<< "PASSED"<< endl<< endl;
 		return 1;
-	} else {
-		cout<< "FAILED"<< endl<< endl;
-		return 0;
 	}
+	cout<< "FAILED"<< endl<< endl;
+	return 0;
 }
 
 int test25 () {
@@ -626,10 +625,9 @@ int test25 () {
 	if (!strcmp((ccp)t3, tstr)) {
 		cout<< "PASSED"<< endl<< endl;
 		return 1;
-	} else {
-		cout<< "FAILED"<< endl<< endl;
-		return 0;
 	}
+	cout<< "FAILED"<< endl<< endl;
+	return 0;
 }
 
 int test26 () {
@@ -653,10 +651,9 @@ int test26 () {
 	if (!strcmp(ostr.c_str(), istr) && !strcmp(ojstr.c_str(), jstr)) {
 		cout<< "PASSED"<< endl<< endl;
 		return 1;
-	} else {
-		cout<< "FAILED"<< endl<< endl;
-		return 0;
 	}
+	cout<< "FAILED"<< endl<< endl;
+	return 0;
 }
 
 int test27 () {
@@ -680,10 +677,9 @@ int test27 () {
 	if (!strcmp(ostr.c_str(), istr)) {
 		cout<< "PASSED"<< endl<< endl;
 		return 1;
-	} else {
-		cout<< "FAILED"<< endl<< endl;
-		return 0;
 	}
+	cout<< "FAILED"<< endl<< endl;
+	return 0;
 }
 
 int test28 () {
@@ -707,10 +703,9 @@ int test28 () {
 	if (!strcmp(ostr.c_str(), istr)) {
 		cout<< "PASSED"<< endl<< endl;
 		return 1;
-	} else {
-		cout<< "FAILED"<< endl<< endl;
-		return 0;
 	}
+	cout<< "FAILED"<< endl<< endl;
+	return 0;
 }
 
 int test29 () {
@@ -737,10 +732,9 @@ int test29 () {
 	if (ostr==fStr) {
 		cout<< "PASSED"<< endl<< endl;
 		return 1;
-	} else {
-		cout<< "FAILED"<< endl<< endl;
-		return 0;
 	}
+	cout<< "FAILED"<< endl<< endl;
+	return 0;
 }
 
 int test30 () {
@@ -763,10 +757,9 @@ int test30 () {
 	if (areContractors && !strcmp(firstEmployeeFirstName, "John")) {
 		cout<< "PASSED"<< endl<< endl;
 		return 1;
-	} else {
-		cout<< "FAILED"<< endl<< endl;
-		return 0;
 	}
+	cout<< "FAILED"<< endl<< endl;
+	return 0;
 }
 
 int test31 () {
@@ -794,10 +787,9 @@ int test31 () {
 		 !endpoint && !p256dh && !authKe) {
 		cout<< "PASSED"<< endl<< endl;
 		return 1;
-	} else {
-		cout<< "FAILED"<< endl<< endl;
-		return 0;
 	}
+	cout<< "FAILED"<< endl<< endl;
+	return 0;
 }
 
 int test32 () {
@@ -846,10 +838,9 @@ int test32 () {
 		 !strcmp(biography.c_str(), expectedBio)) {
 		cout<< "PASSED"<< endl<< endl;
 		return 1;
-	} else {
-		cout<< "FAILED"<< endl<< endl;
-		return 0;
 	}
+	cout<< "FAILED"<< endl<< endl;
+	return 0;
 }
 
 int test33 () {
@@ -868,10 +859,9 @@ int test33 () {
 	if (!t["a1"][666]["c8"] && (int)t["a1"][667]["c8"]==1) {
 		cout<< "PASSED"<< endl<< endl;
 		return 1;
-	} else {
-		cout<< "FAILED"<< endl<< endl;
-		return 0;
 	}
+	cout<< "FAILED"<< endl<< endl;
+	return 0;
 }
 
 int test34 () {
@@ -894,10 +884,9 @@ int test34 () {
 		 !strcmp(vstr.c_str(), cvoid)) {
 		cout<< "PASSED"<< endl<< endl;
 		return 1;
-	} else {
-		cout<< "FAILED"<< endl<< endl;
-		return 0;
 	}
+	cout<< "FAILED"<< endl<< endl;
+	return 0;
 }
 
 int test35 () {
@@ -917,10 +906,9 @@ int test35 () {
 	if (!strcmp(un, cfun)) {
 		cout<< "PASSED"<< endl<< endl;
 		return 1;
-	} else {
-		cout<< "FAILED"<< endl<< endl;
-		return 0;
 	}
+	cout<< "FAILED"<< endl<< endl;
+	return 0;
 }
 
 int test36 () {
@@ -940,10 +928,9 @@ int test36 () {
 	if (sal==5) {
 		cout<< "PASSED"<< endl<< endl;
 		return 1;
-	} else {
-		cout<< "FAILED"<< endl<< endl;
-		return 0;
 	}
+	cout<< "FAILED"<< endl<< endl;
+	return 0;
 }
 
 int test37 () {
@@ -966,10 +953,9 @@ int test37 () {
 	if (!strcmp(rt["user"], "Necktwi")) {
 		cout<< "PASSED"<< endl<< endl;
 		return 1;
-	} else {
-		cout<< "FAILED"<< endl<< endl;
-		return 0;
 	}
+	cout<< "FAILED"<< endl<< endl;
+	return 0;
 }
 
 int test38 () {
@@ -998,10 +984,9 @@ int test38 () {
 		 strstr(fStr.c_str(), "#comment")) {
 		cout<< "PASSED"<< endl<< endl;
 		return 1;
-	} else {
-		cout<< "FAILED"<< endl<< endl;
-		return 0;
 	}
+	cout<< "FAILED"<< endl<< endl;
+	return 0;
 }
 
 int test39 () {
@@ -1027,10 +1012,9 @@ int test39 () {
 	if (strstr(prettyTxj.c_str(), "(8)")) {
 		cout<< "PASSED"<< endl<< endl;
 		return 1;
-	} else {
-		cout<< "FAILED"<< endl<< endl;
-		return 0;
 	}
+	cout<< "FAILED"<< endl<< endl;
+	return 0;
 }
 
 int test40 () {
@@ -1051,10 +1035,9 @@ int test40 () {
 	if (sal==5) {
 		cout<< "PASSED"<< endl<< endl;
 		return 1;
-	} else {
-		cout<< "FAILED"<< endl<< endl;
-		return 0;
 	}
+	cout<< "FAILED"<< endl<< endl;
+	return 0;
 }
 
 int test41 () {
@@ -1212,20 +1195,24 @@ int test41 () {
 
 // ---------- test41: thread-safety stress test ----------
 static Txj_ t41Root (Txj_::OBJ);
-static atomic<int64_t> t41TotalOps {0};
-static atomic<uint64_t> t41KeyCtr {0};
+static unsigned long totalTxjs= 0;
+static mutex totalTxjsMtx;
 static const uint64_t t41_TARGET= 100000;
 static const int t41_MAX_MEMBERS= 7;
-static const int t41_NUM_THREADS= 4;
-
+static const int NUM_THREADS= 4;
+static Txj_::Locker_ thrdTstLkr;
 thread_local random_device t41_rd;
 thread_local mt19937_64 t41_rng{t41_rd()};
 
 static bool t41_isCtnr (Txj_& t) {
-	return t.isType(Txj_::OBJ) || t.isType(Txj_::ARRAY) ||
-		t.isType(Txj_::ORDERED_OBJ) || t.isType(Txj_::SET_TYPE);
+	switch (t.getType()) {
+	case Txj_::OBJ: case Txj_::ARRAY: case Txj_::ORDERED_OBJ:
+	case Txj_::SET_TYPE:
+		return true;
+	}
+	return false;
 }
-static bool noContainer (Txj_* c) {
+static bool noCntnrIn (Txj_* c) {
 	if (!t41_isCtnr(*c))
 		return true;
 	Txj_::Iterator it= c->begin();
@@ -1237,7 +1224,7 @@ static bool noContainer (Txj_* c) {
 	return true;
 }
 
-static Txj_* t41_makeLeaf () {
+static Txj_* makeLeaf () {
 	uniform_int_distribution<int> dist(0, 4);
 	int t= dist(t41_rng);
 	Txj_* p= new Txj_();
@@ -1255,7 +1242,7 @@ static Txj_* t41_makeLeaf () {
 	}
 	return p;
 }
-static Txj_* t41_insertInto (Txj_& c, Txj_& child);
+static Txj_* insertIntoCntnr (Txj_& c, Txj_& child);
 static Txj_* t41_makeSimpleContainer () {
 	uniform_int_distribution<int> dist(0, 3);
 	int t= dist(t41_rng);
@@ -1277,7 +1264,7 @@ static Txj_* t41_makeSimpleContainer () {
 	}
 	return p;
 }
-static Txj_* t41_makeContainer () {
+static Txj_* makeContainer () {
 	uniform_int_distribution<int> dist(0, 3);
 	int t= dist(t41_rng);
 	Txj_* p= nullptr;
@@ -1297,67 +1284,111 @@ static Txj_* t41_makeContainer () {
 		break;
 	}
 	Txj_* child= t41_makeSimpleContainer();
-	t41_insertInto(*p, *child);
+	insertIntoCntnr(*p, *child);
 	delete child;
 	return p;
 }
-static Txj_* t41_insertInto (Txj_& c, Txj_& child) {
-	c.lockShared();
-	if (c.size >= (unsigned)t41_MAX_MEMBERS) {
-		c.unlockShared();
-		return nullptr;
-	}
+static Txj_* insertIntoCntnr (Txj_& c, Txj_& child) {
 	bool isArr= c.isType(Txj_::ARRAY);
 	bool isSet= c.isType(Txj_::SET_TYPE);
-	unsigned asz= isArr? c.size: 0;
-	c.unlockShared();
 	if (isSet) {
-		// c[] locks c internally, so call it WITHOUT holding c's lock;
-		// the set-insert inside operator= is not locked, so take c's
-		// exclusive lock only around `mem= child`
 		Txj_& mem= c[];
-		Txj_* pp= &mem;
-		c.lock();
-		unsigned sz= c.size;
-		if (sz >= (unsigned)t41_MAX_MEMBERS) {
-			c.unlock();
-			delete pp;
+		mem= child;
+		if (c.size >= (unsigned)t41_MAX_MEMBERS) {
+			if (!c.erase(&mem)) {
+				delete &mem;
+			}
 			return nullptr;
 		}
-		mem= child;
-		bool ok= c.size==sz+1;
-		c.unlock();
-		// do NOT delete pp here: on the dedup path operator= has already
-		// deleted the proxy (it `delete this`s when set insert fails);
-		// on success pp is a live set member
-		return ok? pp : nullptr;
+		return &mem;
 	}
-	string k= "k" + to_string(t41KeyCtr.fetch_add(1));
-	Txj_& mem= isArr? c[asz] : c[k];
+	string k= "k" + to_string(c.size);
+	Txj_& mem= isArr? c[c.size] : c[k];
 	mem= child;
 	return &mem;
 }
-static Txj_* t41_pickTxj (Txj_& c, bool container) {
-	if (c.size == 0)
-		return container? &c : nullptr;
-	uniform_int_distribution<int> d(0, c.size);
+
+Txj_ cntnr1("file://tests/data/cntnr1.arr.txj");
+static void populateCntnr (int a) {
+	for (int i=0; i< 20; ++i) {
+		Txj_* pLf= makeLeaf();
+		for (int j=0; j<4; ++j) {
+//		for (int j=0; j<1; ++j) {
+			insertIntoCntnr(cntnr1[j], *pLf);
+		}
+		delete pLf;
+	}
+}
+int test42 () {
+	cout << "## 42. 1 container thread safety stress test" << endl;
+	totalTxjs= 0;
+	cntnr1[0].init(Txj_::OBJ);
+	cntnr1[1].init(Txj_::ORDERED_OBJ);
+	cntnr1[2].init(Txj_::ARRAY);
+	cntnr1[3].init(Txj_::SET_TYPE);
+	int numThreads= NUM_THREADS;
+	cout<< "ThreadCount: "<< numThreads<< ", ObjectCount: "<< t41_TARGET<< endl;
+	ftsStart.update();
+
+	ThreadPool tp(numThreads);
+	for (int i=0; i<numThreads; ++i)
+		tp.enqueue(populateCntnr);
+	tp.join();
+	cntnr1.save();
+	ftsEnd.update();
+	ftsDiff= ftsEnd-ftsStart;
+	cout<< "  done in "<< ftsDiff<< "sec"<< endl;
+	t41Root.freeObj();
+	cout<< "PASSED"<< endl<< endl;
+	return 1;
+}
+// struct LkNd_ {
+// 	Txj_* tP= nullptr;
+// 	lkNd* child= nullptr;
+// 	lkNd* sb= nullptr;
+// };
+// LkNd_* lkndP= nullptr;
+// 	if (!*lLkNdP) {
+// 		c.lockShared(thrdTstLkr);
+// 		*lLkNdP= new LkNd_();
+// 		(*lkNdP)->tP= &c;
+// 	} else if (lLkNdP->tP != &c) {
+// 		LkNd_** l= &lLkNdP->sb;
+// 		while (*l && (*l)->sb!=&c) {
+// 			l= &l->sb;
+// 		}
+// 		if (!(*l && (*l)->sb)) {
+// 			c.lockShared(thrdTstLkr);
+// 			if (!*l) {
+// 				*l= new LkNd_();
+// 			}
+// 			(*l)->sb= &c;
+			
+// 		}
+// 	}
+thread_local set<Txj_*> lckdTxj;
+static Txj_* t41_pickTxj (Txj_& c, bool container=false, bool onlyRoot=false);
+Txj_* t41_pickTxj (Txj_& c, bool container, bool onlyRoot) {
+	if (!lckdTxj.contains(&c)) {
+		flDbg(TXJ_THRDTST, "%d: lockshared %p", tid, &c);
+		c.lockShared(thrdTstLkr);
+	}
+	if (c.size==0) {
+		return &c;
+	}
+	uniform_int_distribution<int> d;
+	uniform_int_distribution<int> d2(0, 1);
+	Txj_* m= nullptr;
 	int skip;
   randgen:
+	d= uniform_int_distribution<int>(0, c.size);
 	skip= d(t41_rng);
 	if (skip==c.size) {
-		if (container)
 			return &c;
-		else
-			goto randgen;
 	}
-	uniform_int_distribution<int> d2(0, 1);
 	switch (c.getType()) {
 	case Txj_::ARRAY: {
-		uniform_int_distribution<int> d(0, c.size-1);
-		Txj_& m= (*c)[d(t41_rng)];
-		if (container && !t41_isCtnr(m))
-			return nullptr;
-		return d2(t41_rng)? t41_pickTxj(m, true):&m;
+		m= &(*c)[skip];
 	}
 	case Txj_::OBJ:
 	case Txj_::ORDERED_OBJ:
@@ -1367,57 +1398,30 @@ static Txj_* t41_pickTxj (Txj_& c, bool container) {
 		for (int i= 0; i<skip && it!=end; ++it,++i) {}
 		if (it==end)
 			return nullptr;
-		Txj_& m= *it;
-		if (container && !t41_isCtnr(m))
-			return nullptr;
-		return d2(t41_rng)? t41_pickTxj(m, true):&m;
+		m= &*it;
 	}}
-	return nullptr;
-}
-static void t41_eraseMember (Txj_& c, Txj_& mem) {
-	if (c.isType(Txj_::ARRAY)) {
-		Txj_::Iterator it= c.begin();
-		Txj_::Iterator end= c.end();
-		int idx= 0;
-		while (it!=end) {
-			if (&(*it)==&mem) {
-				c.erase(idx);
-				return;
-			}
-			++it;
-			++idx;
+	if (t41_isCtnr(*m)) {
+		if (!onlyRoot && d2(t41_rng)) {
+			Txj_* ptr= t41_pickTxj(*m, container, false);
+			m= ptr;
 		}
-	} else if (c.isType(Txj_::OBJ) || c.isType(Txj_::ORDERED_OBJ)) {
-		Txj_::Iterator it= c.begin();
-		Txj_::Iterator end= c.end();
-		while (it!=end) {
-			if (&(*it)==&mem) {
-				string key= it.getIndex();
-				c.erase(key);
-				return;
-			}
-			++it;
+	} else {
+		if (container) {
+			return &c;
 		}
+		flDbg(TXJ_THRDTST, "%d: lockShared %p", tid, m);
+		m->lockShared(thrdTstLkr);
 	}
+	flDbg(TXJ_THRDTST, "%d: unlockShared %p", tid, &c);
+	c.unlockShared(thrdTstLkr);
+	return m;
 }
 static const char* t41_tn (Txj_& t) {
-	if (t.isType(Txj_::OBJ)) return "obj";
-	if (t.isType(Txj_::ARRAY)) return "arr";
-	if (t.isType(Txj_::ORDERED_OBJ)) return "oob";
-	if (t.isType(Txj_::SET_TYPE)) return "set";
-	if (t.isType(Txj_::STRING)) return "str";
-	if (t.isType(Txj_::NUMBER)) return "num";
-	if (t.isType(Txj_::BOOL)) return "bool";
-	if (t.isType(Txj_::BINARY)) return "bin";
-	if (t.isType(Txj_::TIME)) return "time";
-	static char buf[16];
-	snprintf(buf, sizeof(buf), "t%d", (int)t.getType());
-	return buf;
+	return Txj_::TXJ_EXT[t.getType()];
 }
 static uint64_t t41_countNodes (Txj_& t) {
 	if (!t41_isCtnr(t))
 		return 1;
-	t.lockShared();
 	uint64_t n= 1;
 	if (t.isType(Txj_::ARRAY)) {
 		for (unsigned i=0; i<t.size; ++i) {
@@ -1432,13 +1436,12 @@ static uint64_t t41_countNodes (Txj_& t) {
 			n+= t41_isCtnr(m)? t41_countNodes(m): 1;
 		}
 	}
-	t.unlockShared();
 	return n;
 }
-static void t41_workerBody (int);
-static void t41_worker (int) {
+static void t41_worker (int);
+static void t41_workerMask (int) {
 	try {
-		t41_workerBody(tid);
+		t41_worker(tid);
 	} catch (const exception& e) {
 		void* frames[64];
 		int n= backtrace(frames, 64);
@@ -1449,113 +1452,125 @@ static void t41_worker (int) {
 		throw;
 	}
 }
-static void t41_workerBody (int) {
-	while (t41TotalOps.load() < t41_TARGET) {
+static void t41_worker (int) {
+	while (totalTxjs < t41_TARGET) {
 		uniform_int_distribution<int> ad(0, 4);
-		int a= ad(t41_rng);
-		Txj_* c= t41_pickTxj(t41Root, true);
-		if (!c) continue;
-		if (c->size==6 && noContainer(c)) {
-			Txj_* nc= t41_makeContainer();
-			printf("tid:%d inserting (%lld)%p<%s> in %p<%s>\n",
-					 tid, (long long)t41TotalOps.load(), nc, t41_tn(*nc),
-					 c, t41_tn(*c));
-			Txj_* inserted= t41_insertInto(*c, *nc);
-			if (inserted)
-				t41TotalOps.fetch_add(1);
+		int a;
+		Txj_* c= t41_pickTxj(t41Root, true, false);
+		if (!c) {
+			flDbg(TXJ_THRDTST, "%d: continue", tid);continue;
+		}
+		lckdTxj.insert(c);
+	  pickOp:
+		a= ad(t41_rng);
+		if (c->size==6 && noCntnrIn(c)) {
+			Txj_* nc= makeContainer();
+			Txj_* inserted= insertIntoCntnr(*c, *nc);
+			if (inserted) {
+				totalTxjsMtx.lock();
+				++totalTxjs;
+				printf(
+					"tid:%d inserted (%lld)%p<%s> in %p<%s>\n", tid,
+					(long long)totalTxjs, nc, t41_tn(*nc), c, t41_tn(*c));
+				totalTxjsMtx.unlock();
+			}
 			delete nc;
-			continue;
-		}
-		if (a <= 1) {
-			if (!c)
-				continue;
+		} else if (a <= 1 && c->size<7) {
+			flDbg(TXJ_THRDTST, "%d: insert", tid);
 			uniform_int_distribution<int> td(0, 3);
-			if (td(t41_rng) <= 1) {
-				Txj_* leaf= t41_makeLeaf();
-				printf("tid:%d inserting (%lld)%p<%s> in %p<%s>\n",
-					tid, (long long)t41TotalOps.load(), leaf,
-					t41_tn(*leaf), c, t41_tn(*c));
-				if (t41_insertInto(*c, *leaf))
-					t41TotalOps.fetch_add(1);
-				delete leaf;
+			Txj_* pt;
+			if (td(t41_rng) <= 2) {
+				pt= makeLeaf();
 			} else {
-				Txj_* nc= t41_makeContainer();
-				printf("tid:%d inserting (%lld)%p<%s> in %p<%s>\n",
-					tid, (long long)t41TotalOps.load(), nc,
-					t41_tn(*nc), c, t41_tn(*c));
-				Txj_* inserted= t41_insertInto(*c, *nc);
-				if (inserted)
-					t41TotalOps.fetch_add(1);
-				delete nc;
+				pt= makeContainer();
 			}
-		} else if (a <= 2) {
-			Txj_* src= t41_pickTxj(t41Root, true);
-			if (!src)
-				continue;
-			if (!src->tryLockShared()) {
-				continue;
+			Txj_* inserted= insertIntoCntnr(*c, *pt);
+			if (inserted) {
+				totalTxjsMtx.lock();
+				++totalTxjs;
+				printf(
+					"tid:%d inserted (%lu)%p<%s> in %p<%s>\n", tid,
+					totalTxjs, pt, t41_tn(*pt), c, t41_tn(*c));
+				totalTxjsMtx.unlock();
 			}
-			Txj_* srcMem= t41_pickTxj(*src, false);
-			src->unlockShared();
-			if (!srcMem)
-				continue;
-			uint64_t cnt= 1;
-			if (t41_isCtnr(*srcMem)) {
-				cnt= t41_countNodes(*srcMem);
-				if (cnt-1 > 7)
-					continue;
+			delete pt;
+		} else if (a <= 2 && c->size<7) {
+			flDbg(TXJ_THRDTST, "%d: copy", tid);
+			Txj_* toBeCopied= t41_pickTxj(t41Root, false, false);
+			if (!toBeCopied) {
+				flDbg(TXJ_THRDTST, "%d: unlocked %p", tid, c);
+				c->unlock(thrdTstLkr);
+				lckdTxj.clear();
+				flDbg(TXJ_THRDTST, "%d: copy continue", tid);continue;}
+			int cnt= 1;
+			if (t41_isCtnr(*toBeCopied)) {
+				cnt= t41_countNodes(*toBeCopied);
+				if (cnt-1 > 7) {
+					flDbg(TXJ_THRDTST, "%d: unlockshared %p", tid, toBeCopied);
+					toBeCopied->unlockShared(thrdTstLkr);
+					flDbg(TXJ_THRDTST, "%d: unlocked %p", tid, c);
+					c->unlock(thrdTstLkr);
+					lckdTxj.clear();
+					flDbg(TXJ_THRDTST, "%d: copy continue", tid);continue;
+				}
 			}
-			if (!c)
-				continue;
-			printf("tid:%d copying (%lld)%p<%s> from %p<%s> to %p<%s>\n",
-				 tid, (long long)t41TotalOps.load(), srcMem,
-				 t41_tn(*srcMem), src, t41_tn(*src), c,
-				 t41_tn(*c));
-			Txj_ tmp(*srcMem);
-			if (t41_insertInto(*c, tmp))
-				t41TotalOps.fetch_add(cnt);
+			Txj_* inserted= insertIntoCntnr(*c, *toBeCopied);
+			if (inserted) {
+				totalTxjsMtx.lock();
+				totalTxjs+= cnt;
+				printf(
+					"tid:%d copied %d/%lu %p<%s> to %p<%s>\n", tid, cnt,
+					totalTxjs, toBeCopied, t41_tn(*toBeCopied), c,
+					t41_tn(*c));
+				totalTxjsMtx.unlock();
+			}
+			if (c!=toBeCopied) {
+				flDbg(TXJ_THRDTST, "%d: unlockShared %p", tid, toBeCopied);
+				toBeCopied->unlockShared(thrdTstLkr);}
 		} else {
-			if (!c || c->size < 2)
-				continue;
-			switch (c->getType()) {
-			case Txj_::OBJ:
-			case Txj_::ORDERED_OBJ:
-			case Txj_::SET_TYPE: {
-				Txj_::Iterator it= c->begin();
-				Txj_::Iterator end= c->end();
-				uniform_int_distribution<int> d(0, c->size-1);
-				int skip= d(t41_rng);
-				for (int i=0; i<skip && it!=end; ++it,++i) {}
-				if (it!=end) {
-					Txj_& mem= *it;
-					switch (mem.getType()) {
-					case Txj_::OBJ:
-					case Txj_::ORDERED_OBJ:
-					case Txj_::SET_TYPE: {
-						printf("tid:%d deleting %p<%s> from %p<%s>\n",
-								 tid, &mem, t41_tn(mem), c, t41_tn(*c));
-						if (c->isType(Txj_::SET_TYPE))
-							c->erase(&mem);
-						else
-							c->erase(it.getIndex());
-						--t41TotalOps;}
-					}
-				}}
+			flDbg(TXJ_THRDTST, "%d: delete", tid);
+			if (c->size < 2) {
+				flDbg(TXJ_THRDTST, "%d: repicking op", tid);
+				goto pickOp;
 			}
+			Txj_* mem= t41_pickTxj(*c, false, true);
+			if (!mem) {
+				flDbg(TXJ_THRDTST, "%d: unlocked %p", tid, c);
+				c->unlock(thrdTstLkr);
+				flDbg(TXJ_THRDTST, "%d: delete continue", tid);continue;
+			}
+			int cnt= t41_countNodes(*mem);
+			flDbg(TXJ_THRDTST, "%d: unlockShared %p", tid, c);
+			c->unlockShared(thrdTstLkr);
+			flDbg(TXJ_THRDTST, "%d: lock %p", tid, c);
+			c->lock(thrdTstLkr);
+			flDbg(TXJ_THRDTST, "%d: unlockShared %p", tid, mem);
+			mem->unlockShared(thrdTstLkr);
+			printf(
+				"tid:%d deleting %d/%lu %p<%s> from %p<%s>\n", tid, cnt,
+				totalTxjs, mem, t41_tn(*mem), c, t41_tn(*c));
+			c->erase(mem);
+			totalTxjsMtx.lock();
+			totalTxjs-= cnt;
+			totalTxjsMtx.unlock();
+			flDbg(TXJ_THRDTST, "%d: unlock %p", tid, c);
+			c->unlock(thrdTstLkr);
 		}
+		flDbg(TXJ_THRDTST, "%d: unlockShared %p", tid, c);
+		lckdTxj.clear();
+		c->unlockShared(thrdTstLkr);
 	}
 }
-int test42 () {
-	cout << "## 42. thread safety stress test" << endl;
-	t41TotalOps.store(0);
-	t41KeyCtr.store(0);
+int test43 () {
+	cout << "## 43. tree thread safety stress test" << endl;
+	totalTxjs= 0;
 
-	cout << "  " << t41_NUM_THREADS << " threads, "
+	cout << "  " << NUM_THREADS << " threads, "
 	     << t41_TARGET << " ops" << endl;
 	ftsStart.update();
 
-	ThreadPool tp(t41_NUM_THREADS);
-	for (int i=0; i<t41_NUM_THREADS; ++i)
+	ThreadPool tp(NUM_THREADS);
+	for (int i=0; i<NUM_THREADS; ++i)
 		tp.enqueue(t41_worker);
 	tp.join();
 
@@ -1727,25 +1742,26 @@ int main (int argc, char** argv) {
 	int pc= 0, tc=0;
 	printMemUsage(); cout<< endl;
 
-	++tc; pc+= test24();
-	++tc; pc+= test25();
-	++tc; pc+= test26();
-	++tc; pc+= test27();
-	++tc; pc+= test28();
-	++tc; pc+= test29();
-	++tc; pc+= test30();
-	++tc; pc+= test31();
-	++tc; pc+= test32();
-	++tc; pc+= test33();
-	++tc; pc+= test34();
-	++tc; pc+= test35();
-	++tc; pc+= test36();
-	++tc; pc+= test37();
-	++tc; pc+= test38();
-	++tc; pc+= test39();
-	++tc; pc+= test40();
-	++tc; pc+= test41();
-	++tc; pc+= test42();
+	// ++tc; pc+= test24();
+	// ++tc; pc+= test25();
+	// ++tc; pc+= test26();
+	// ++tc; pc+= test27();
+	// ++tc; pc+= test28();
+	// ++tc; pc+= test29();
+	// ++tc; pc+= test30();
+	// ++tc; pc+= test31();
+	// ++tc; pc+= test32();
+	// ++tc; pc+= test33();
+	// ++tc; pc+= test34();
+	// ++tc; pc+= test35();
+	// ++tc; pc+= test36();
+	// ++tc; pc+= test37();
+	// ++tc; pc+= test38();
+	// ++tc; pc+= test39();
+	// ++tc; pc+= test40();
+	// ++tc; pc+= test41();
+	// ++tc; pc+= test42();
+	++tc; pc+= test43();
 
 	ftsSuiteEnd.update();
    ftsDiff= ftsSuiteEnd-ftsSuiteStart;

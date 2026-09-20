@@ -29,8 +29,9 @@ typedef unsigned int uint;
 using namespace std;
 
 enum txj_log_level_ {
-	TXJ_MAIN= 1 << 0,
-	TXJ_L2=   1 << 1
+	TXJ_MAIN=    1 << 0,
+	TXJ_L2=      1 << 1,
+	TXJ_THRDTST= 1 << 2
 };
 class Txj_;
 struct FFPtrCmp {
@@ -366,7 +367,6 @@ public:
 		FFValue() : str {nullptr}
 		{}
 	} val;
-
 	/**
 	 * It holds the size of the Txj_ object. array size, object properties,
 	 * string length. Do not change it!! Its made public only for reading
@@ -410,6 +410,7 @@ public:
 	 * @param t
 	 */
 	Txj_(OBJ_TYPE t);
+	void init (OBJ_TYPE t);	
 	
 	~Txj_();
 	/**
@@ -418,8 +419,9 @@ public:
 	 */
 	void freeObj(bool bAssignment=false);
 	
-	static const						FeaturedMemType m_FM_LAST= FM_PARENT;
-	static const char					OBJ_STR[15][15];
+	static const FeaturedMemType m_FM_LAST= FM_PARENT;
+	static const char TXJ_EXT[16][4];
+	static const char OBJ_STR[16][15];
 	static inline std::map<std::string, uint8_t> STR_OBJ= {
 		{"", UNDEFINED},
 		{"UNDEFINED", UNDEFINED},
@@ -433,13 +435,36 @@ public:
 		{"tm", TIME},
 		{"NUL", NUL}
 	};
-	static map<const Txj_*, shared_mutex> MtxMap;
-	static shared_mutex MtxMapMtx;
-	shared_mutex& getMtxMapMtx () const;
-	void lock () const; void unlock () const;
-	void lockShared () const; void unlockShared () const;
-	bool tryLock () const; bool tryLockShared () const;
-	static void prune ();
+	class Locker_ {
+		map<const Txj_*, shared_mutex> MtxMap;
+		shared_mutex MtxMapMtx;
+	public:
+		static set<Locker_*> lockerSet;
+		set<const Txj_*> mortury;
+		Locker_ () {
+			lockerSet.insert(this);
+		}
+		~Locker_ () {
+			lockerSet.erase(this);
+		}
+		static void deleteAllMtx (const Txj_* t);
+		shared_mutex& getMtxMapMtx (const Txj_* t);
+		shared_mutex* getMtxMapMtxIfExists (const Txj_* t);
+		void prune ();
+	};
+	static Locker_ lkr;
+	void lock (Locker_& lkr= Txj_::lkr) const;
+	void unlock (Locker_& lkr= Txj_::lkr) const;
+	void lockShared (Locker_& lkr= Txj_::lkr) const;
+	void unlockShared (Locker_& lkr= Txj_::lkr) const;
+	bool tryLock (Locker_& lkr= Txj_::lkr) const;
+	bool tryLockShared (Locker_& lkr= Txj_::lkr) const;
+	void lockIfExists (Locker_& lkr= Txj_::lkr) const;
+	void lockAllIfExists () const;
+	void lockSharedIfExists (Locker_& lkr= Txj_::lkr) const;
+	bool tryLockIfExists (Locker_& lkr= Txj_::lkr) const;
+	bool tryLockSharedIfExists (Locker_& lkr= Txj_::lkr) const;
+	static void pruneLkr ();
 	static Txj_* MarkAsUpdatable(string& link, const Txj_& rParent);
 	static Txj_* UnMarkUpdatable(string& link, const Txj_& rParent);
 	
@@ -556,7 +581,7 @@ public:
 	);
 	void erase (string name);
 	void erase (int index);
-	void erase (Txj_* value);
+	bool erase (Txj_* value);
 	uint erase (uint start, uint end);
 	int save (
 		bool json= false, bool printComments= true, unsigned int indent=0,
