@@ -211,7 +211,7 @@ void test1 () {
    cout << ffo2a << endl;
    ffo2a = ffo2ao.prettyString();
    cout << ffo2a << endl;
-   delete ao;
+   Txj_::refRelease(ao);
    cout << "3rd students Maths marks: " <<
    ffo2["studentsMarks"][2]["Maths"].prettyString() << endl;
    if (ffo2["null"] == nullptr){
@@ -1224,7 +1224,7 @@ static bool noCntnrIn (Txj_* c) {
 	return true;
 }
 
-static Txj_* makeLeaf () {
+static Txj_::TxjP_ makeLeaf () {
 	uniform_int_distribution<int> dist(0, 4);
 	int t= dist(t41_rng);
 	Txj_* p= new Txj_();
@@ -1240,7 +1240,7 @@ static Txj_* makeLeaf () {
 		*p= Txj_::Blob_{d, 8};
 		break;}
 	}
-	return p;
+	return Txj_::TxjP_(p);
 }
 static Txj_* insertIntoCntnr (Txj_& c, Txj_& child);
 static Txj_* t41_makeSimpleContainer () {
@@ -1264,7 +1264,7 @@ static Txj_* t41_makeSimpleContainer () {
 	}
 	return p;
 }
-static Txj_* makeContainer () {
+static Txj_::TxjP_ makeContainer () {
 	uniform_int_distribution<int> dist(0, 3);
 	int t= dist(t41_rng);
 	Txj_* p= nullptr;
@@ -1273,7 +1273,7 @@ static Txj_* makeContainer () {
 		(*p)[]= 100;
 		(*p)[]= 200;
 		(*p)[]= 300;
-		return p;
+		return Txj_::TxjP_(p);
 	}
 	switch (t) {
 	case 0: p= new Txj_(Txj_::OBJ);
@@ -1283,10 +1283,10 @@ static Txj_* makeContainer () {
 	default: p= new Txj_(Txj_::ORDERED_OBJ);
 		break;
 	}
-	Txj_* child= t41_makeSimpleContainer();
+	Txj_::TxjP_ child( t41_makeSimpleContainer() );
 	insertIntoCntnr(*p, *child);
-	delete child;
-	return p;
+	Txj_::refRelease(&*child);
+	return Txj_::TxjP_(p);
 }
 static Txj_* insertIntoCntnr (Txj_& c, Txj_& child) {
 	bool isArr= c.isType(Txj_::ARRAY);
@@ -1295,9 +1295,9 @@ static Txj_* insertIntoCntnr (Txj_& c, Txj_& child) {
 		Txj_& mem= c[];
 		mem= child;
 		if (c.size >= (unsigned)t41_MAX_MEMBERS) {
-			if (!c.erase(&mem)) {
-				delete &mem;
-			}
+		if (!c.erase(&mem)) {
+			Txj_::refRelease(&mem);
+		}
 			return nullptr;
 		}
 		return &mem;
@@ -1311,12 +1311,12 @@ static Txj_* insertIntoCntnr (Txj_& c, Txj_& child) {
 Txj_ cntnr1("file://tests/data/cntnr1.arr.txj");
 static void populateCntnr (int a) {
 	for (int i=0; i< 20; ++i) {
-		Txj_* pLf= makeLeaf();
+		Txj_::TxjP_ pLf= makeLeaf();
 		for (int j=0; j<4; ++j) {
 //		for (int j=0; j<1; ++j) {
 			insertIntoCntnr(cntnr1[j], *pLf);
 		}
-		delete pLf;
+		Txj_::refRelease(&*pLf);
 	}
 }
 int test42 () {
@@ -1464,21 +1464,22 @@ static void t41_worker (int) {
 	  pickOp:
 		a= ad(t41_rng);
 		if (c->size==6 && noCntnrIn(c)) {
-			Txj_* nc= makeContainer();
+			Txj_::TxjP_ nc= makeContainer();
 			Txj_* inserted= insertIntoCntnr(*c, *nc);
 			if (inserted) {
 				totalTxjsMtx.lock();
 				++totalTxjs;
 				printf(
 					"tid:%d inserted (%lld)%p<%s> in %p<%s>\n", tid,
-					(long long)totalTxjs, nc, t41_tn(*nc), c, t41_tn(*c));
+					(long long)totalTxjs, &*nc, t41_tn(*nc), c,
+					t41_tn(*c));
 				totalTxjsMtx.unlock();
 			}
-			delete nc;
+			Txj_::refRelease(&*nc);
 		} else if (a <= 1 && c->size<7) {
 			flDbg(TXJ_THRDTST, "%d: insert", tid);
 			uniform_int_distribution<int> td(0, 3);
-			Txj_* pt;
+			Txj_::TxjP_ pt;
 			if (td(t41_rng) <= 2) {
 				pt= makeLeaf();
 			} else {
@@ -1490,10 +1491,10 @@ static void t41_worker (int) {
 				++totalTxjs;
 				printf(
 					"tid:%d inserted (%lu)%p<%s> in %p<%s>\n", tid,
-					totalTxjs, pt, t41_tn(*pt), c, t41_tn(*c));
+					totalTxjs, &*pt, t41_tn(*pt), c, t41_tn(*c));
 				totalTxjsMtx.unlock();
 			}
-			delete pt;
+			Txj_::refRelease(&*pt);
 		} else if (a <= 2 && c->size<7) {
 			flDbg(TXJ_THRDTST, "%d: copy", tid);
 			Txj_* toBeCopied= t41_pickTxj(t41Root, false, false);

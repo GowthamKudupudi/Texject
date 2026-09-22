@@ -37,10 +37,10 @@ class Txj_;
 struct FFPtrCmp {
 	bool operator() (const Txj_* a, const Txj_* b) const;
 };
-typedef set<Txj_*, FFPtrCmp> ffset;
-typedef map<string, Txj_*> ffmap;
-typedef vector<Txj_*> ffvec;
 typedef const char* ccp;
+typedef set<Txj_*, FFPtrCmp> ffset;
+typedef map<ccp, Txj_*> ffmap;
+typedef vector<Txj_*> ffvec;
 
 class DLLExport Txj_ {
 public:
@@ -54,7 +54,7 @@ public:
 		STRING,
 		XML,
 		SET_TYPE,
-		NEW_SET_MEMBER,
+		NEW_MEMBER,
 		ARRAY,
 		OBJ,
 		ORDERED_OBJ,
@@ -106,6 +106,7 @@ public:
 	};
 	
 	enum FeaturedMemType : uint32_t {
+		FM_KEY               = 1,
 		FM_TABHEAD           = 1,
       FM_PRECISION         = 1,
       FM_WIDTH             = 1,
@@ -136,7 +137,7 @@ public:
 		Iterator ();
 		Iterator (const Iterator& orig);
 		Iterator (const Txj_& orig, bool end= false);
-		Iterator (map<string, Txj_*>::iterator pi);
+		Iterator (ffmap::iterator pi);
 		Iterator (vector<Txj_*>::iterator ai);
 		Iterator (vector<ffmap::iterator>::iterator pai,
 		          vector<ffmap::iterator>* pMapItVec);
@@ -188,14 +189,14 @@ public:
 			~IteratorUnion ()
 			{}
 			IteratorUnion (
-				const vector<map<string, Txj_*>::iterator>::iterator& itMapVector
+				const vector<ffmap::iterator>::iterator& itMapVector
 			) {
 				pai= itMapVector;
 			}
-			IteratorUnion (const vector<Txj_*>::iterator& itVec) {
+			IteratorUnion (const ffvec::iterator& itVec) {
 				ai= itVec;
 			}
-			IteratorUnion (const map<string, Txj_*>::iterator& itMap) {
+			IteratorUnion (const ffmap::iterator& itMap) {
 				pi= itMap;
 			}
 			IteratorUnion (const ffset::iterator& itSet) {
@@ -225,14 +226,14 @@ public:
 	};
 	
 	struct FeaturedMemHook;
-	typedef vector<string> Link;
+	typedef vector<ccp> Link;
 	struct Blob_ {
 		uint8_t* p;
 		size_t s;
 	};
 	union FeaturedMember {
 		Link* link;
-		map<string, int>* tabHead;
+		map<ccp, int>* tabHead;
 		Txj_* m_pParent;
 		/**
 		 * used to store the number precision
@@ -267,7 +268,8 @@ public:
 		 * file name
 		 */
 		char* m_sFileName;
-		
+		const char* key;
+		uint index;
 		FerryTimeStamp* m_pTimeStamp;
 		
 		FeaturedMember() : link {NULL}
@@ -291,7 +293,7 @@ public:
 		Txj_* ln= nullptr;
 	};
 	struct TxjPObj {
-		const string* name= nullptr;
+		ccp name= nullptr;
 		Txj_* value= NULL;
 		TxjPObj* pObj= NULL;
 		vector<ffmap::iterator>* m_pvpsMapSequence= nullptr;
@@ -303,7 +305,7 @@ public:
 		/**
 		 * Holds column widths for tabular members
 		 */
-		map<string, vector<int> >* m_msviClWidths= NULL;
+		//map<string, vector<int> >* m_msviClWidths= NULL;
 		/**
 		 * If this flag is set returns 1st line of string
 		 */
@@ -311,7 +313,7 @@ public:
 	};
 	
 	union TxjIterator {
-		map<string, Txj_*>::iterator m_itMap;
+		ffmap::iterator m_itMap;
 		uint m_uiIndex;
 		
 		TxjIterator () {
@@ -325,7 +327,7 @@ public:
 		}
 		~TxjIterator ()
 		{}
-		TxjIterator (const map<string, Txj_*>::iterator& itMap) {
+		TxjIterator (const ffmap::iterator& itMap) {
 			m_itMap= itMap;
 		}
 		TxjIterator (const unsigned int uiIndex) {
@@ -349,15 +351,15 @@ public:
 		}
 	};
 	
-	struct LinkNRef {
-		Txj_* m_pRef= 0;
-		string m_sLink;
-	};
+//	struct LinkNRef {
+//		Txj_* m_pRef= 0;
+//		ccp m_sLink;
+//	};
 
 	union FFValue {
 		char* str;
 		vector<Txj_*>* array;
-		map<string, Txj_*>* pairs;
+		ffmap* pairs;
 		set<Txj_*, FFPtrCmp>* setPtr;
 		double number;
 		bool boolean;
@@ -418,6 +420,39 @@ public:
 	 * array or an object, invoke it.
 	 */
 	void freeObj(bool bAssignment=false);
+	/**
+	 * Shared-ownership handle. Every Txj_ is born with one reference
+	 * (its own, taken by the constructor). A live TxjP_ adds one more.
+	 * refRelease deletes the object only when the last reference goes
+	 * away, so a node that still belongs to a container (its own
+	 * reference) is never deleted by the last external handle, and a
+	 * container eviction (a refRelease) never deletes a node that live
+	 * handles still reference. Containers keep plain Txj_* pointers.
+	 */
+	class TxjP_ {
+		Txj_* p;
+	public:
+		TxjP_ ();
+		explicit TxjP_ (Txj_* p_);
+		TxjP_ (const TxjP_& o);
+		TxjP_ (TxjP_&& o);
+		TxjP_& operator= (const TxjP_& o);
+		TxjP_& operator= (TxjP_&& o);
+		~TxjP_ ();
+		Txj_* operator-> () const;
+		Txj_& operator* () const;
+		template <typename T>
+		TxjP_ operator [] (T t) {
+			return TxjP_(&((*p)[t]));
+		}
+		Txj_* get () const;
+		explicit operator bool () const;
+		Txj_* release ();
+		void reset (Txj_* p_= nullptr);
+	};
+	static void refAcquire (Txj_* p);
+	static void refRelease (Txj_* p);
+	static void refErase (Txj_* p);
 	
 	static const FeaturedMemType m_FM_LAST= FM_PARENT;
 	static const char TXJ_EXT[16][4];
@@ -465,8 +500,8 @@ public:
 	bool tryLockIfExists (Locker_& lkr= Txj_::lkr) const;
 	bool tryLockSharedIfExists (Locker_& lkr= Txj_::lkr) const;
 	static void pruneLkr ();
-	static Txj_* MarkAsUpdatable(string& link, const Txj_& rParent);
-	static Txj_* UnMarkUpdatable(string& link, const Txj_& rParent);
+//	static Txj_* MarkAsUpdatable(ccp link, const Txj_& rParent);
+//	static Txj_* UnMarkUpdatable(ccp link, const Txj_& rParent);
 	
 	void insertFeaturedMember (FeaturedMember& fms, FeaturedMemType fMT);
 	FeaturedMember getFeaturedMember (FeaturedMemType fMT) const;
@@ -579,7 +614,7 @@ public:
 		Txj_* queryObject, TxjPObj* pObj= nullptr,
 		FerryTimeStamp lastUpdateTime= FerryTimeStamp(), Txj_* ao= nullptr
 	);
-	void erase (string name);
+	void erase (const string& name);
 	void erase (int index);
 	bool erase (Txj_* value);
 	uint erase (uint start, uint end);
@@ -594,6 +629,9 @@ public:
 	void SelfTest ();
 	Txj_& addLink (const Txj_& obj, string label);
 	Txj_& addLink (const string&& objPath, const string&& linkPath);
+
+	void insertInParent ();
+	
 	Txj_& operator [] (const char* prop);
 	Txj_& operator [] (const string& prop);
 	Txj_& operator [] (const int index);
@@ -616,7 +654,7 @@ public:
 	Txj_& operator= (const T& t) {
 		lock();
 		if(isQType(UPDATE)){
-			FeaturedMember fm=getFeaturedMember(FM_UPDATE_TIMESTAMP);
+			FeaturedMember fm= getFeaturedMember(FM_UPDATE_TIMESTAMP);
 			fm.m_pTimeStamp->update();
 		}
 		freeObj ();
@@ -675,7 +713,7 @@ private:
 	static bool inline isTerminatingChar (char c);
 	static bool inline isInitializingChar (char c);
 	static std::map<Txj_*, set<TxjIterator> > sm_mUpdateObjs;
-	Txj_* returnNameIfDeclared (vector<string>& prop,
+	Txj_* returnNameIfDeclared (Link& prop,
 										TxjPObj* fpo= nullptr) const;
 	bool inherit (Txj_& obj, TxjPObj* pFPObj);
 	void ReadMultiLinesInContainers (
@@ -685,7 +723,7 @@ private:
 	string ConstructMultiLineStringArray (
 		vector<Txj_*>& vpfMulLnStrs,
 		int indent, vector<int>& vClWidths) const;
-	LinkNRef GetLinkString (TxjPObj* pObj);
+	//LinkNRef GetLinkString (TxjPObj* pObj);
 };
 static Txj_ nullTxj;
 ostream& operator << (ostream& out, const Txj_& f);

@@ -26,6 +26,7 @@
 #include <ferrybase/FerryTimeStamp.h>
 #include <ferrybase/myconverters.h>
 #include <ferrybase/mystdlib.h>
+#include <ferrybase/StrPool.h>
 #include <logger.h>
 #include <stdexcept>
 
@@ -42,7 +43,7 @@ const char Txj_::OBJ_STR[16][15]= {
 	"STRING",
 	"XML",
 	"SET_TYPE",
-	"NEW_SET_MEMBER",
+	"NEW_MEMBER",
 	"ARRAY",
 	"OBJ",
 	"ORDERED_OBJ", //number of members are greater than MAX_ORDERED_MEMBERS; Its
@@ -57,6 +58,95 @@ map<Txj_*, set<Txj_::TxjIterator> > Txj_::sm_mUpdateObjs;
 set <Txj_::Locker_*> Txj_::Locker_::lockerSet;
 Txj_::Locker_ Txj_::lkr;
 
+struct TxjRefReg {
+	mutex mtx;
+	map<Txj_*, unsigned> refs;
+};
+TxjRefReg& txjRefReg () {
+	static TxjRefReg r;
+	return r;
+}
+void Txj_::refAcquire (Txj_* p) {
+	if (!p) return;
+	TxjRefReg& r= txjRefReg();
+	unique_lock<mutex> lk(r.mtx);
+	++r.refs[p];
+}
+void Txj_::refErase (Txj_* p) {
+	if (!p) return;
+	TxjRefReg& r= txjRefReg();
+	unique_lock<mutex> lk(r.mtx);
+	r.refs.erase(p);
+}
+void Txj_::refRelease (Txj_* p) {
+	if (!p) return;
+	bool doDelete= false;
+	{
+		TxjRefReg& r= txjRefReg();
+		unique_lock<mutex> lk(r.mtx);
+		auto it= r.refs.find(p);
+		if (it==r.refs.end()) return;
+		if (--it->second) return;
+		r.refs.erase(it);
+		doDelete= true;
+	}
+	delete p;
+}
+Txj_::TxjP_::TxjP_ () : p(nullptr) {}
+Txj_::TxjP_::TxjP_ (Txj_* p_) : p(p_) {
+	if (p) refAcquire(p);
+}
+Txj_::TxjP_::TxjP_ (const TxjP_& o) : p(o.p) {
+	if (p) refAcquire(p);
+}
+Txj_::TxjP_::TxjP_ (TxjP_&& o) : p(o.p) {
+	o.p= nullptr;
+}
+Txj_::TxjP_& Txj_::TxjP_::operator= (const TxjP_& o) {
+	if (this!=&o && p!=o.p) {
+		Txj_* old= p;
+		p= o.p;
+		if (p) refAcquire(p);
+		if (old) refRelease(old);
+	}
+	return *this;
+}
+Txj_::TxjP_& Txj_::TxjP_::operator= (TxjP_&& o) {
+	if (this!=&o) {
+		Txj_* old= p;
+		p= o.p;
+		o.p= nullptr;
+		if (old) refRelease(old);
+	}
+	return *this;
+}
+Txj_::TxjP_::~TxjP_ () {
+	if (p) refRelease(p);
+}
+Txj_* Txj_::TxjP_::operator-> () const {
+	return p;
+}
+Txj_& Txj_::TxjP_::operator* () const {
+	return *p;
+}
+Txj_* Txj_::TxjP_::get () const {
+	return p;
+}
+Txj_::TxjP_::operator bool () const {
+	return p!=nullptr;
+}
+Txj_* Txj_::TxjP_::release () {
+	Txj_* r= p;
+	p= nullptr;
+	return r;
+}
+void Txj_::TxjP_::reset (Txj_* p_) {
+	Txj_* old= p;
+	p= p_;
+	if (p) refAcquire(p);
+	if (old && old!=p) refRelease(old);
+}
+
 void iterSeq (vector<ffmap::iterator>* vecPtr, ffmap::iterator& i, int& ind,
 				  ffmap& objmap) {
 	if (vecPtr) {
@@ -70,6 +160,7 @@ void iterSeq (vector<ffmap::iterator>* vecPtr, ffmap::iterator& i, int& ind,
 }
 
 Txj_::Txj_ () {
+	refAcquire(this);
 	//	  type = UNDEFINED;
 	//	  qtype = NONE;
 	//	  etype = ENONE;
@@ -80,6 +171,7 @@ Txj_::Txj_ () {
 }
 
 Txj_::Txj_ (OBJ_TYPE t) {
+	refAcquire(this);
 	init(t);
 }
 void Txj_::init (OBJ_TYPE t) {
@@ -90,6 +182,8 @@ void Txj_::init (OBJ_TYPE t) {
 	freeObj();
 	FeaturedMember fmMapSequence;
 	switch (t) {
+	case NEW_MEMBER:
+		setType(NEW_MEMBER);
 	case ORDERED_OBJ:
 		setType(ORDERED_OBJ);
 		fmMapSequence.m_pvpsMapSequence=
@@ -124,11 +218,13 @@ void Txj_::init (OBJ_TYPE t) {
 }
 
 Txj_::Txj_ (const Txj_& orig, COPY_FLAGS cf, TxjPObj* pObj) {
+	refAcquire(this);
 	copy(orig, cf, pObj);
 }
 
 Txj_::Txj_ (const string& ffjson, int* ci, int indent, Txj_::TxjPObj* pObj)
 	: size(0), flags(0) {
+	refAcquire(this);
 	//Txj_::TxjPObj* pObj) {
 	init(ffjson, ci, indent, pObj);
 }
@@ -231,13 +327,13 @@ void Txj_::copy (const Txj_& orig, COPY_FLAGS cf, TxjPObj* pObj) {
 		pLObj.value= this;
 		while (i!=orig.val.pairs->end()) {
 			Txj_* fo= NULL;
-			pLObj.name= &i->first;
+			pLObj.name= i->first;
 			ffmap::iterator ii= val.pairs->find(i->first);
 			if (ii!=val.pairs->end() && ((cf&COPY_SHALLOW)!=COPY_SHALLOW)) {
 				ii->second->copy(*i->second, cf, &pLObj);
 			} else {
 				if (((cf&COPY_SHALLOW)==COPY_SHALLOW)) {
-					delete ii->second;
+					Txj_::refRelease(ii->second);
 					fo= new Txj_();
 					*fo= &(*i->second);
 				} else {
@@ -248,12 +344,12 @@ void Txj_::copy (const Txj_& orig, COPY_FLAGS cf, TxjPObj* pObj) {
 			if (fo && ((cf==COPY_QUERIES && !fo->isQType(QUERY_TYPE::NONE))
 						  || !fo->isType(UNDEFINED))) {
 				pair<ffmap::iterator, bool> prNew= val.
-					pairs->insert(pair<string, Txj_*>(i->first, fo));
+					pairs->insert(pair<ccp, Txj_*>(i->first, fo));
 				++size;
 				if (fm.m_pvpsMapSequence)
 					fm.m_pvpsMapSequence->push_back(prNew.first);
 			} else {
-				delete fo;
+				Txj_::refRelease(fo);
 			}
 			iterSeq(itVecPtr, i, iMapSeqIndexer, objmap);
 		}
@@ -282,7 +378,7 @@ void Txj_::copy (const Txj_& orig, COPY_FLAGS cf, TxjPObj* pObj) {
 		while (i<orig.val.array->size()) {
 			Txj_* fo= NULL;
 			string index= to_string(i);
-			pLObj.name= &index;
+			pLObj.name= index.c_str();
 			if ((*orig.val.array)[i]!=NULL) {
 				unlockShared();
 				(*this)[i].copy(*(*orig.val.array)[i]);
@@ -292,7 +388,7 @@ void Txj_::copy (const Txj_& orig, COPY_FLAGS cf, TxjPObj* pObj) {
 			matter= true;
 		}
 		if (orig.isEFlagSet(EXTENDED)) {
-			map<string, int>* m= new map<string, int>();
+			map<ccp, int>* m= new map<ccp, int>();
 			FeaturedMember cFM= orig.getFeaturedMember(FM_TABHEAD);
 			(*m)= *cFM.tabHead;
 			cFM= orig.getFeaturedMember(FM_PARENT);
@@ -328,15 +424,15 @@ void Txj_::copy (const Txj_& orig, COPY_FLAGS cf, TxjPObj* pObj) {
 			if (val.setPtr->insert(newcopy).second)
 				++size;
 			else
-				delete newcopy;
+				Txj_::refRelease(newcopy);
 		}
 		unlock();
 		break;
 	}
 	case LINK: {
 		lock();
-		vector<string>* ln=
-			new vector<string>(*orig.getFeaturedMember(FM_LINK).link);
+		Link* ln=
+			new Link(*orig.getFeaturedMember(FM_LINK).link);
 		FeaturedMember fm;
 		fm.link= ln;
 		setType(origType);
@@ -557,7 +653,7 @@ void Txj_::init (
 		char txji= txj[i];
 		switch (txji) {
 		case '[':
-			ffpo.name= &arrInd;
+			ffpo.name= arrInd.c_str();
 			nind= getIndent(txj.c_str(), &i, indent);
 			goto braceCommon;
 		case '{':
@@ -567,7 +663,7 @@ void Txj_::init (
 			ffpo.pObj= pObj;
 			while (1) {
 				ffmap::iterator prNew;
-				bool arrEnd= false; ffpo.name= &arrInd;
+				bool arrEnd= false; ffpo.name= arrInd.c_str();
 				Txj_* obj= new Txj_(txj, &i, nind, &ffpo);
 				if (i>=j) {
 					flErr(TXJ_MAIN, "Error parsing Txj_ at %d\n", i);
@@ -581,7 +677,7 @@ void Txj_::init (
 					default: ++i; continue;
 					} break;
 				} ++i;
-				const string& objId= *ffpo.name;
+				ccp objId= ffpo.name;
 			  memobtained:
 				if (txji=='[') {
 					if (isType(ORDERED_OBJ)) {
@@ -590,7 +686,7 @@ void Txj_::init (
 						if (objId[0]=='#') {
 							comment= true;
 						}
-						if (
+						/*if (
 							objId[0]=='(' && objId[1]=='T' && objId[2]=='i' &&
 							objId[3]=='m' && objId[4]=='e' && objId[5]==')'
 						) {
@@ -603,7 +699,7 @@ void Txj_::init (
 							fm.m_pTimeStamp= obj->val.m_pFerryTimeStamp;
 							pOverLooker->insertFeaturedMember(
 								fm, FM_UPDATE_TIMESTAMP);
-						} else {
+						} else*/ {
 							ffpo.m_pvpsMapSequence->push_back(prNew);
 							if (comment) {
 								comment= false;
@@ -620,7 +716,7 @@ void Txj_::init (
 							obj->isQType(NONE) &&
 							!obj->isEFlagSet((E_FLAGS)(FILE|CASTFILE))
 						) {
-							delete obj;
+							Txj_::refRelease(obj);
 							obj= nullptr;
 							if (!arrEnd || size) {
 								val.array->push_back(NULL);
@@ -645,7 +741,7 @@ void Txj_::init (
 						// 	m_uFM.m_bIsMultiLineArray= false;
 						// }
 					} else if (isType(UNDEFINED)){
-						if (&objId!=&arrInd) {
+						if (objId!=arrInd.c_str()) {
 							setType(ORDERED_OBJ);
 							ffpo.m_pvpsMapSequence= fmMapSequence.m_pvpsMapSequence=
 								new vector<ffmap::iterator>();
@@ -662,7 +758,7 @@ void Txj_::init (
 				} else if (txji=='{') {
 					if (isType(OBJ)) {
 					  ObjIns:
-						if (&objId==&arrInd) {
+						if (objId==arrInd.c_str()) {
 							flErr(TXJ_MAIN, "Error parsing Txj_ at %d\n", i);
 							return;
 						}
@@ -674,7 +770,7 @@ void Txj_::init (
 						++size;
 					} else if (isType(SET_TYPE)) {
 						if (!obj->isType(UNDEFINED) && !obj->isType(NUL)) {
-							if (&objId!=&arrInd) {
+							if (objId!=arrInd.c_str()) {
 								flErr(TXJ_MAIN, "Error parsing Txj_ at %d\n", i);
 								return;
 							}
@@ -682,10 +778,10 @@ void Txj_::init (
 							if (ret.second) {
 								++size;
 							} else {
-								delete obj;
+								Txj_::refRelease(obj);
 							}
 						} else {
-							delete obj;
+							Txj_::refRelease(obj);
 							if (!size && arrEnd) {
 								delete val.setPtr;
 								val.setPtr= nullptr;
@@ -694,12 +790,12 @@ void Txj_::init (
 							}
 						}
 					} if (isType(UNDEFINED)) {
-						if (&objId!=&arrInd || (arrEnd && obj->isType(NUL))) {
+						if (objId!=arrInd.c_str() || (arrEnd && obj->isType(NUL))) {
 							setType(OBJ);
 							if (val.pairs==nullptr) {
 								val.pairs= new ffmap();
 								if (arrEnd) {
-									delete obj;
+									Txj_::refRelease(obj);
 									goto backyard;
 								}
 							}
@@ -830,8 +926,8 @@ void Txj_::init (
 				}
 				trimWhites(buf);
 				trimQuotes(buf);
-				pObj->name= &lp->insert(
-					pair<string, Txj_*>(buf, nullptr)).first->first;
+				pObj->name= lp->insert(
+					pair<ccp, Txj_*>(ccpFromPool(buf), nullptr)).first->first;
 				objIdNail= i+1;
 			};
 			break;
@@ -1097,8 +1193,8 @@ void Txj_::init (
 			string subffj(txj.c_str()+objIdNail, i-objIdNail);
 			trimWhites(subffj);
 			if (subffj.length()>0) {
-				vector<string>* prop= new vector<string>();
-				explode(".", subffj, *prop);
+				Link* prop= new Link();
+				explode(".", subffj.c_str(), *prop);
 				Txj_* obj= returnNameIfDeclared(*prop, pObj);
 				if (!obj) {
 					if (!pObj) {
@@ -1108,7 +1204,8 @@ void Txj_::init (
 					}
 					int pL= 0;
 					TxjPObj* lfpo= pObj;
-					while (pL<prop->size() && !(*prop)[pL].size()) {
+					ccp key= (*prop)[pL];
+					while (pL<prop->size() && !(key && strlen(key))) {
 						lfpo= lfpo->pObj;
 						if (!lfpo) {
 							delete prop;
@@ -1152,7 +1249,7 @@ void Txj_::init (
 			if (inherit(*obj, &ffpo)) {
 
 			} else {
-				delete obj;
+				Txj_::refRelease(obj);
 			}
 		}
 	} /*else if (isType(UNDEFINED)) {
@@ -1216,7 +1313,7 @@ void Txj_::init (
 	for (int l= ffpo.symTrVec.size()-1; l>=0; --l) {
 		Txj_* tln= this;
 		for (int m= 0; m<ffpo.symTrVec[l].l->size(); ++m) {
-			if (!(*ffpo.symTrVec[l].l)[m].size()) {
+			if (!(*ffpo.symTrVec[l].l)[m]) {
 				continue;
 			}
 			Txj_::Iterator it= tln->find((*ffpo.symTrVec[l].l)[m]);
@@ -1333,6 +1430,23 @@ void Txj_::insertFeaturedMember (FeaturedMember& fms, FeaturedMemType fMT) {
 	FeaturedMember* pFMS= &m_uFM;
 	uint32_t iFMCount= flags>>28;
 	uint32_t iFMTraversed= 0;
+	if (isType(NEW_MEMBER)) {
+		if (fMT==FM_KEY) {
+			if (!pFMS->key) {
+				*pFMS= fms;
+			} else {
+				FeaturedMemHook* pNewFMH= new FeaturedMemHook();
+				pNewFMH->m_uFM= *pFMS;
+				pNewFMH->m_pFMH= fms;
+				pFMS->m_pFMH= pNewFMH;
+			}
+			iFMCount++;
+			setFMCount(iFMCount);
+			return;
+		} else if (iFMCount>1) {
+			pFMS= &pFMS->m_pFMH->m_pFMH;
+		}
+	}
 	if (isEFlagSet((E_FLAGS)(FILE|CASTFILE))) {
 		if (fMT==FM_FILE) {
 			if (!pFMS->width) {
@@ -1519,6 +1633,22 @@ Txj_::FeaturedMember Txj_::getFeaturedMember (FeaturedMemType fMT) const {
 	uint32_t iFMTraversed= 0;
 	FeaturedMember decoyFM;
 	decoyFM.precision= 0;
+	if (isType(NEW_MEMBER)) {
+		if (fMT==FM_KEY) {
+			if (iFMCount-iFMTraversed==1) {
+				return *pFMS;
+			} else {
+				return pFMS->m_pFMH->m_uFM;
+			}
+		} else {
+			if (iFMCount-iFMTraversed==1) {
+				return decoyFM;
+			} else {
+				pFMS= &pFMS->m_pFMH->m_pFMH;
+			}
+		}
+		++iFMTraversed;
+	}
 	if (isEFlagSet((E_FLAGS)(FILE|CASTFILE))) {
 		if (fMT==FM_FILE) {
 			if (iFMCount-iFMTraversed==1) {
@@ -1682,7 +1812,7 @@ Txj_::FeaturedMember Txj_::getFeaturedMember (FeaturedMemType fMT) const {
 
 void DeleteChildLinks(vector<Txj_*>* childLinks) {
 	for (int i= 0; i<childLinks->size(); ++i) {
-		delete (*childLinks)[i];
+		Txj_::refRelease((*childLinks)[i]);
 	}
 }
 
@@ -1691,6 +1821,26 @@ void Txj_::destroyAllFeaturedMembers (bool bExemptQueries) {
 	FeaturedMemHook* pFMH;
 	if (!iFMCount)
 		return;
+	if (isType(NEW_MEMBER)) {
+		if (iFMCount!=1) {
+			pFMH= m_uFM.m_pFMH;
+			m_uFM= pFMH->m_pFMH;
+			delete pFMH;
+		}
+		iFMCount--;
+	}
+	if (isEFlagSet((E_FLAGS)(FILE|CASTFILE))) {
+		if (iFMCount==1) {
+			delete[] m_uFM.m_sFileName;
+		} else {
+			pFMH= m_uFM.m_pFMH;
+			delete[] pFMH->m_uFM.m_sFileName;
+			m_uFM= pFMH->m_pFMH;
+			delete pFMH;
+		}
+		iFMCount--;
+		clearEFlag(FILE);
+	}
 	if (isEFlagSet((E_FLAGS)(FILE|CASTFILE))) {
 		if (iFMCount==1) {
 			delete[] m_uFM.m_sFileName;
@@ -2001,15 +2151,15 @@ void Txj_::deleteFeaturedMember (FeaturedMemType fmt) {
 }
 
 Txj_* Txj_::returnNameIfDeclared (
-	vector<string>& prop, Txj_::TxjPObj* fpo
+	vector<ccp>& prop, Txj_::TxjPObj* fpo
 ) const {
 	int j= 0;
-	int lp=0;
+	int lp= 0;
 	if (fpo==nullptr){
-		fpo=new Txj_::TxjPObj();
-		fpo->value=const_cast<Txj_*>(this);
+		fpo= new Txj_::TxjPObj();
+		fpo->value= const_cast<Txj_*>(this);
 		for (int i=0; i<prop.size();++i) {
-			if (!prop[i].size()) {
+			if (!strlen(prop[i])) {
 				++lp;
 			} else {
 				break;
@@ -2020,7 +2170,7 @@ Txj_* Txj_::returnNameIfDeclared (
 		Txj_* fp= fpo->value;
 		j= lp;
 		while (j<prop.size()) {
-			if (!prop[lp].size()) {
+			if (!strlen(prop[lp])) {
 				++lp;
 				break;
 			}
@@ -2032,7 +2182,7 @@ Txj_* Txj_::returnNameIfDeclared (
 				}
 			} else if (fp->isType(ARRAY)) {
 				int index= -1;
-				index= atoi(prop[j].c_str());
+				index= atoi(prop[j]);
 				if (index==0 && prop[j][0]!='0') {
 					break;
 				}
@@ -2079,6 +2229,7 @@ Txj_::~Txj_ () {
 	lockAllIfExists();
 	freeObj();
 	Locker_::deleteAllMtx(this);
+	refErase(this);
 }
 
 void Txj_::freeObj (bool bAssignment) {
@@ -2088,7 +2239,7 @@ void Txj_::freeObj (bool bAssignment) {
 		ffmap::iterator i;
 		i= val.pairs->begin();
 		while (i!=val.pairs->end()) {
-			delete i->second;
+			Txj_::refRelease(i->second);
 			++i;
 		}
 		delete val.pairs;
@@ -2096,7 +2247,7 @@ void Txj_::freeObj (bool bAssignment) {
 	case ARRAY: {
 		int i= val.array->size()-1;
 		while (i>=0) {
-			delete (*val.array)[i];
+			Txj_::refRelease((*val.array)[i]);
 			--i;
 		}
 		delete val.array;
@@ -2104,7 +2255,7 @@ void Txj_::freeObj (bool bAssignment) {
 	case SET_TYPE: {
 		for (Txj_* fp : *val.setPtr) {
 			if (fp)
-				delete fp;
+				Txj_::refRelease(fp);
 		}
 		delete val.setPtr;
 		break;}
@@ -2197,7 +2348,7 @@ Txj_& Txj_::operator [] (void) {
 	}
 	Txj_* obj= new Txj_();
 	if (isType(SET_TYPE)) {
-		obj->setType(NEW_SET_MEMBER);
+		obj->setType(NEW_MEMBER);
 		obj->val.fptr= this;
 	}
 	unlock();
@@ -2225,106 +2376,63 @@ Txj_& Txj_::operator [] (const char* prop) {
 		size= 0;}
 	case OBJ:
 	case ORDERED_OBJ: {
-		string t(prop);ffmap::iterator it;
-		it= val.pairs->find(t);
+		ffmap::iterator it;
+		it= val.pairs->find(prop);
 		if (it!=val.pairs->end()) {
-		  	if (it->second!=NULL) {
-				Txj_* prf= it->second;
-				// while (prf->isLink()) {
-				// 	prf= prf->val.fptr;
-				// }
-				if (locked) unlock(); else unlockShared(); return *prf;
-			} else {
-				if (!locked) {unlockShared(); lock(); locked= true; goto ssstart;}
-				obj= new Txj_();
-				(*val.pairs)[t]= obj;
-				unlock();return *obj;
-			}
-		} else {
-			if (!locked) {unlockShared(); lock(); locked= true; goto ssstart;}
-			obj= new Txj_();
-			FeaturedMember fmMapSequence= getFeaturedMember(FM_MAP_SEQUENCE);
-			++size;//should b increase only after getFeatruredMember
-			pair<ffmap::iterator, bool> prNew= val.
-				pairs->insert(pair<string, Txj_*>(string(prop), obj));
-			if (fmMapSequence.m_pvpsMapSequence) {
-				fmMapSequence.m_pvpsMapSequence->push_back(prNew.first);
-			}
-		}} break;
+			Txj_* prf= it->second;
+			if (locked) unlock(); else unlockShared(); return *prf;
+		}}
+		break;
 	case ARRAY: if (isEFlagSet(EXT_VIA_PARENT) || isEFlagSet(EXTENDED)) {
 			FeaturedMember cFM= getFeaturedMember(FM_TABHEAD);
-			int i= (*cFM.tabHead)[prop];
-			if (locked) unlock(); else unlockShared();
-			Txj_& ret= (*this)[i]; //no need to lock; [i] will lock
-			return ret;
+			map<ccp, int>::iterator it= cFM.tabHead->find(ccpIfInPool(prop));
+			if (it!=cFM.tabHead->end()) {
+				if (locked) unlock(); else unlockShared();
+				return (*this)[it->second]; //no need to lock; [i] will lock
+			}
 		} else {
 			if (locked) unlock(); else unlockShared();
-			Txj_& ret= (*this)[atoi(prop)];
-			return ret;
-		}
+			return (*this)[atoi(prop)];
+		}break;
 	case SET_TYPE: {ffset::iterator it= val.setPtr->begin();
 		while (it!=val.setPtr->end()) {
 			obj= *it;
 			++it;
 			if (obj->isType(Txj_::STRING)) {
 				if (!strcmp(prop, obj->val.str)) {
-					break;
+					return *obj;
 				}
 			}
-			obj= nullptr;
 		}}
 	}
+	obj= new Txj_(NEW_MEMBER);
+	FeaturedMember fm; fm.key= ccpFromPool(prop);
+	obj->insertFeaturedMember(fm, FM_KEY);
 	if (locked) unlock(); else unlockShared();
-	if (!obj) {
-		obj= &nullTxj;
-	}
 	return *obj;
 }
 
 Txj_& Txj_::operator [] (const int index) {
-	bool locked=false;lockShared();
+	bool locked= false;lockShared();
   ssstart:
 	if (isLink()) {
 		unlockShared(); return (*val.fptr)[index];}
+	Txj_* obj;
 	switch (getType()) {
 	case ARRAY: if (val.array->size()>index) {
-			if ((*val.array)[index]==NULL) {
-				if (!locked) {unlockShared(); lock(); locked= true; goto ssstart;}
-				Txj_* p= (*val.array)[index]= new Txj_(NUL);
-				unlock();
-				return *p;
-			} else /*if ((*val.array)[index]->isLink()) {
-				Txj_* prf= (*val.array)[index];
-				while (prf->isLink()) {
-					prf= prf->val.fptr;
-				}
-				unlockShared();return *prf;
-				} else */{
-				Txj_& ret= *((*val.array)[index]);
+			if ((*val.array)[index]!=NULL) {
+				obj= (*val.array)[index];
 				if (locked) unlock(); else unlockShared();
-				return ret;
+				return *obj;
 			}
-		} else {
-			if (!locked) {unlockShared(); lock(); locked= true; goto ssstart;}
-			if (val.array->size()>index) {
-				Txj_& ret= *((*val.array)[index]);
-				unlock();return ret;
-			}
-			Txj_* f;
-			for (int i=size; i<=index; ++i) {
-				f= new Txj_();
-				val.array->push_back(f);
-				++size;
-			}
-			unlock();return *f;
 		}
 	case SET_TYPE: {ffset::iterator it= val.setPtr->begin();
 		while (it!=val.setPtr->end()) {
-			Txj_* pt= *it;
+			obj= *it;
 			++it;
-			if (pt->isType(Txj_::NUMBER)) {
-				if (index==pt->val.number) {
-					if (locked) unlock(); else unlockShared(); return *pt;
+			if (obj->isType(Txj_::NUMBER)) {
+				if (index==obj->val.number) {
+					if (locked) unlock(); else unlockShared(); return *obj;
 				}
 			}
 		} break; }
@@ -2333,16 +2441,12 @@ Txj_& Txj_::operator [] (const int index) {
 		setType(ARRAY);
 		size= 0;
 		val.array= new ffvec();
-		Txj_* f;
-		for (int i= size; i<=index; ++i) {
-			f= new Txj_();
-			val.array->push_back(f);
-			++size;
-		}
-		if (locked) unlock(); else unlockShared(); return *f;
 	}}
+	obj= new Txj_(NEW_MEMBER);
+	FeaturedMember fm; fm.index= index;
+	obj->insertFeaturedMember(fm, FM_KEY);
 	if (locked) unlock(); else unlockShared();
-	return nullTxj;
+	return *obj;
 };
 
 Txj_& Txj_::operator * () {
@@ -2489,7 +2593,7 @@ void Txj_::stringify (
 			ffs+= i->first;
 			if (json) {ffs+= '"';};
 			ffs+= ':';
-			lfpo.name= &i->first;
+			lfpo.name= i->first;
 			if (t!= NUL) {
 				i->second->stringify(ffs, json, false, &lfpo, lnLvl);
 			} else if (json) {
@@ -2544,7 +2648,7 @@ void Txj_::stringify (
 		break;
 	}
 	case LINK: {
-		vector<string>* vtProp= getFeaturedMember(FM_LINK).link;
+		Link* vtProp= getFeaturedMember(FM_LINK).link;
 		if ((lnLvl<=0 || returnNameIfDeclared(*vtProp, pObj)!=NULL) &&
 //if ((returnNameIfDeclared(*vtProp, pObj)!=NULL) &&
 			 !isEFlagSet(LONG_LAST_LN)
@@ -2734,7 +2838,7 @@ void Txj_::prettyString (
 		}
 		ffmap& objmap= *val.pairs;
 		ffmap::iterator i;
-		map<string, vector<int> > msviClWidths;
+		//map<string, vector<int> > msviClWidths;
 		FeaturedMember fmMapSequence= getFeaturedMember(FM_MAP_SEQUENCE);
 		int iMapSeqIndexer= 0;
 		bool hasComment= false;
@@ -2744,7 +2848,7 @@ void Txj_::prettyString (
 		TxjPrettyPrintPObj lfpo;
 		lfpo.pObj= pObj;
 		lfpo.value= const_cast<Txj_*> (this);
-		lfpo.m_msviClWidths= &msviClWidths;
+		//lfpo.m_msviClWidths= &msviClWidths;
 		int iLastNwLnIndex= 0;
 		if (isEFlagSet(EXT_VIA_PARENT)) {
 			if (isEFlagSet(EXTENDED)) {
@@ -2776,7 +2880,7 @@ void Txj_::prettyString (
 			ps.append(indent+1, '\t');
 			if (json) ps+= "\"";
 			ps+= i->first;
-			lfpo.name= &i->first;
+			lfpo.name= i->first;
 			if (json) ps+= "\"";
 			ps+= ": ";
 			i->second->prettyString(
@@ -2829,11 +2933,11 @@ void Txj_::prettyString (
 		vector<Txj_*>& objarr= *(val.array);
 		int iLastNwLnIndex= 0;
 		vector<int> vClWidths;
-		map<string, vector<int> > msviClWidths;
+		//map<string, vector<int> > msviClWidths;
 		TxjPrettyPrintPObj lfpo;
 		lfpo.pObj= pObj;
 		lfpo.value= const_cast<Txj_*> (this);
-		lfpo.m_msviClWidths= &msviClWidths;
+		//lfpo.m_msviClWidths= &msviClWidths;
 		int iParentHeight= 0;
 		if (!size) {
 			ps+= "[]"; break;
@@ -2957,7 +3061,7 @@ void Txj_::prettyString (
 					 !isEFlagSet(B64ENCODE_STOP))
 					objarr[i]->setEFlag(B64ENCODE_CHILDREN);
 				string ind= to_string(i);
-				lfpo.name= &ind;
+				lfpo.name= ind.c_str();
 				if (objarr[i]->isType(STRING) &&
 					 (isEFlagSet(HAS_CHILDREN) ||
 					  isEFlagSet(EXT_VIA_PARENT))) {
@@ -3015,7 +3119,7 @@ void Txj_::prettyString (
 		break;
 	}
 	case LINK: {
-		vector<string>* vtProp= getFeaturedMember(FM_LINK).link;
+		Link* vtProp= getFeaturedMember(FM_LINK).link;
 		if (save || returnNameIfDeclared(*vtProp, pObj)!=NULL) {
 			string ln= implode(".", *vtProp);
 			ps+=  json?"\""+ln+"\"":ln;
@@ -3138,6 +3242,7 @@ Txj_::operator bool () {
 			return fp->val.boolean;
 		case UNDEFINED:
 		case NUL:
+		case NEW_MEMBER:
 			return false;
 		case STRING:
 			return size;
@@ -3172,28 +3277,49 @@ Txj_::operator unsigned int () {
 	return (unsigned int) fp->val.number;
 }
 
+void Txj_::insertInParent () {
+	if (!isType(NEW_MEMBER)) {
+		return;
+	}
+	Txj_& p= *val.fptr;
+	p.lock();
+	FeaturedMember fm= getFeaturedMember(FM_KEY);
+	switch (p.getType()) {
+	case SET_TYPE: if (p.val.setPtr->insert(this).second) {
+			++p.size;
+		} break;
+	case OBJ:
+	case ORDERED_OBJ: {
+		pair<ffmap::iterator, bool> prNew= p.val.
+			pairs->insert(pair<ccp, Txj_*>(fm.key, this));
+		fm= p.getFeaturedMember(FM_MAP_SEQUENCE);
+		if (fm.m_pvpsMapSequence) {
+			fm.m_pvpsMapSequence->push_back(prNew.first);
+		}
+		++p.size;//should b increase only after getFeatruredMember
+	} break;
+	case ARRAY: if (p.val.array->size()<=fm.index) {
+			for (int i=size; i<fm.index; ++i) {
+				p.val.array->push_back(nullptr);
+				++size;
+			}
+		}
+		(*p.val.array)[fm.index]= this;
+	}
+	p.unlock();
+}
+
 Txj_& Txj_::operator = (Blob_ b) {
 	lock();
+	insertInParent();
 	if (isQType(UPDATE)) {
-		FeaturedMember fm=getFeaturedMember(FM_UPDATE_TIMESTAMP);
+		FeaturedMember fm= getFeaturedMember(FM_UPDATE_TIMESTAMP);
 		fm.m_pTimeStamp->update();
-	}
-	Txj_* parent= nullptr;
-	if (isType(NEW_SET_MEMBER)) {
-		parent= val.fptr;
 	}
 	freeObj(true);
 	setType(BINARY);
 	size= b.s;
 	val.vptr= b.p;
-	if (parent) {
-		if (parent->val.setPtr->insert(this).second)
-			++parent->size;
-		else {
-			unlock();delete this;
-			return nullTxj;
-		}
-	}
 	unlock();return *this;
 }
 // Txj_& Txj_::operator = (char* s) {
@@ -3201,12 +3327,13 @@ Txj_& Txj_::operator = (Blob_ b) {
 // }
 Txj_& Txj_::operator = (const char* s) {
 	lock();
+	insertInParent();
 	if (isQType(UPDATE)) {
 		FeaturedMember fm= getFeaturedMember(FM_UPDATE_TIMESTAMP);
 		fm.m_pTimeStamp->update();
 	}
 	Txj_* parent= nullptr;
-	if (isType(NEW_SET_MEMBER)) {
+	if (isType(NEW_MEMBER)) {
 		parent= val.fptr;
 	}
 	freeObj(true);
@@ -3295,7 +3422,7 @@ Txj_& Txj_::operator = (const char* s) {
 		if (parent->val.setPtr->insert(this).second)
 			++parent->size;
 		else {
-			delete this;
+			Txj_::refRelease(this);
 			unlock(); return nullTxj;
 		}
 	}
@@ -3314,7 +3441,7 @@ Txj_& Txj_::operator = (const int& i) {
 		fm.m_pTimeStamp->update();
 	}
 	Txj_* parent= nullptr;
-	if (isType(NEW_SET_MEMBER)) {
+	if (isType(NEW_MEMBER)) {
 		parent= val.fptr;
 	}
 	freeObj(true);
@@ -3324,7 +3451,7 @@ Txj_& Txj_::operator = (const int& i) {
 		if (parent->val.setPtr->insert(this).second)
 			++parent->size;
 		else {
-			delete this;
+			Txj_::refRelease(this);
 			unlock(); return nullTxj;
 		}
 	}
@@ -3339,7 +3466,7 @@ Txj_& Txj_::operator = (const Txj_& f) {
 		fm.m_pTimeStamp->update();
 	}
 	Txj_* parent= nullptr;
-	if (isType(NEW_SET_MEMBER)) {
+	if (isType(NEW_MEMBER)) {
 		parent= val.fptr;
 	}
 	if (f.isType(UNDEFINED)) {
@@ -3358,7 +3485,7 @@ Txj_& Txj_::operator = (const Txj_& f) {
 		if (parent->val.setPtr->insert(this).second)
 			++parent->size;
 		else {
-			delete this; return nullTxj;
+			Txj_::refRelease(this); return nullTxj;
 		}
 	}
 	return *this;
@@ -3498,12 +3625,12 @@ void Txj_::pruneLkr () {
 	lkr.prune();
 }
 Txj_& Txj_::addLink (const Txj_& PObj, string label) {
-	vector<string>* prop= new vector<string>();
-	explode(".", label, *prop);
+	Link* prop= new Link();
+	explode(".", label.c_str(), *prop);
 	Txj_* obj= const_cast<Txj_*>(PObj.returnNameIfDeclared(*prop));
 	if (obj) {
 		Txj_* parent= nullptr;
-		if (!isType(NEW_SET_MEMBER))
+		if (!isType(NEW_MEMBER))
 			freeObj(true);
 		else {
 			parent= val.fptr;
@@ -3517,7 +3644,7 @@ Txj_& Txj_::addLink (const Txj_& PObj, string label) {
 			if (parent->val.setPtr->insert(this).second)
 				++parent->size;
 			else {
-				delete this;
+				Txj_::refRelease(this);
 				return nullTxj;
 			}
 		}
@@ -3528,14 +3655,14 @@ Txj_& Txj_::addLink (const Txj_& PObj, string label) {
 }
 
 Txj_& Txj_::addLink (const string&& objPath, const string&& linkPath) {
-	vector<string>* objProp= new vector<string>();
-	explode(".", objPath, *objProp);
+	vector<ccp>* objProp= new vector<ccp>();
+	explode(".", objPath.c_str(), *objProp);
 	Txj_* obj= const_cast<Txj_*>(this->returnNameIfDeclared(*objProp));
 	Txj_* link= this;
 	if (obj) {
 		Txj_* parent= NULL;
-		vector<string>* linkProp= new vector<string>();
-		explode(".", linkPath, *linkProp);
+		vector<ccp>* linkProp= new vector<ccp>();
+		explode(".", linkPath.c_str(), *linkProp);
 		for (int i=0; i<linkProp->size();++i) {
 			if ((*linkProp)[i]=="*") {
 				link=&(*link)[];
@@ -3546,7 +3673,7 @@ Txj_& Txj_::addLink (const string&& objPath, const string&& linkPath) {
 				objProp->insert(objProp->begin(), "");
 			}
 		}
-		if (!link->isType(NEW_SET_MEMBER))
+		if (!link->isType(NEW_MEMBER))
 			link->freeObj(true);
 		else {
 			parent= link->val.fptr;
@@ -3560,7 +3687,7 @@ Txj_& Txj_::addLink (const string&& objPath, const string&& linkPath) {
 			if (parent->val.setPtr->insert(link).second)
 				++parent->size;
 			else {
-				delete link;
+				Txj_::refRelease(link);
 				link=&nullTxj;
 			}
 		}
@@ -3656,7 +3783,7 @@ void Txj_::trim () {
 			if (((*(*vmpspfPairs)[i]->second).isType(UNDEFINED)
 				  &&!(*(*vmpspfPairs)[i]->second).isQType(NONE)) ||
 				 (*(*vmpspfPairs)[i]->second).isType(NUL)) {
-				delete (*vmpspfPairs)[i]->second;
+				Txj_::refRelease((*vmpspfPairs)[i]->second);
 				val.pairs->erase((*vmpspfPairs)[i]);
 				vmpspfPairs->erase(vmpspfPairs->begin()+i);
 				--size;
@@ -3665,7 +3792,7 @@ void Txj_::trim () {
 		}
 	} else if (isType(ARRAY)) {
 		if ((*this)[size-1].isType(UNDEFINED)) {
-			delete (*val.array)[size-1];
+			Txj_::refRelease((*val.array)[size-1]);
 			val.array->pop_back();
 			--size;
 		}
@@ -3675,7 +3802,7 @@ void Txj_::trim () {
 				if (((*val.array)[i]->isType(UNDEFINED)&&
 					  !(*val.array)[i]->isQType(NONE)) ||
 					 (*val.array)[i]->isType(NUL)) {
-					delete (*val.array)[i];
+					Txj_::refRelease((*val.array)[i]);
 					(*val.array)[i]= NULL;
 				}
 			}
@@ -3765,7 +3892,8 @@ string Txj_::queryString () {
 					}
 					if (ffjsonStr.length()>0) {
 						if (matter)ffs.append(",");
-						ffs.append("\""+i->first+"\":");
+						ffs.append("\"");
+						ffs+= i->first; ffs+= "\":";
 						ffs.append(ffjsonStr);
 						matter= true;
 					}
@@ -3863,7 +3991,7 @@ Txj_* Txj_::answerObject (
 			if (!queryObject->isQType(DEL)) {
 				if (pObj->value->isType(OBJ)) {
 					Txj_::Iterator itUpdateTime=
-						pObj->value->find(*pObj->name);
+						pObj->value->find(ccpIfInPool(pObj->name));
 					++itUpdateTime;
 					if (itUpdateTime.getIndex().find("(Time)")==0) {
 						if (((FerryTimeStamp&)(*itUpdateTime)>=lastUpdateTime)) {
@@ -3938,7 +4066,7 @@ Txj_* Txj_::answerObject (
 			while (i!=itEnd) {
 				ffmap::iterator k;
 				Txj_* lao= NULL;
-				ffpThisObj.name= &i->first;
+				ffpThisObj.name= i->first;
 				Txj_ tempUpdtObj("^");
 				if (queryObject->isQType(UPDATE)) {
 					if (i->first==j->first) {
@@ -3963,7 +4091,7 @@ Txj_* Txj_::answerObject (
 					if (ao==NULL)ao= new Txj_(queryObject->getType());
 					fmAOMapSequence= ao->getFeaturedMember(FM_MAP_SEQUENCE);
 					pair <ffmap::iterator, bool> prNew=
-						ao->val.pairs->insert(pair<string, Txj_*>(i->first, lao));
+						ao->val.pairs->insert(pair<ccp, Txj_*>(i->first, lao));
 					if (fmAOMapSequence.m_pvpsMapSequence) {
 						fmAOMapSequence.m_pvpsMapSequence->push_back(prNew.first);
 					}
@@ -3998,7 +4126,7 @@ Txj_* Txj_::answerObject (
 						 queryObject->isQType(UPDATE)) {
 						Txj_* ffo= NULL;
 						string ind= to_string(i);
-						ffpThisObj.name= &ind;
+						ffpThisObj.name= ind.c_str();
 						Txj_ tempUpdtObj("^");
 						if ((*queryObject->val.array)[i]==NULL) {
 							ffo= (*fp->val.array)[i]->answerObject
@@ -4020,7 +4148,7 @@ Txj_* Txj_::answerObject (
 					++i;
 				}
 				if (!matter) {
-					delete ao;
+					Txj_::refRelease(ao);
 					ao= NULL;
 				}
 			}
@@ -4140,7 +4268,7 @@ void Txj_::clearEFlag (E_FLAGS t) {
 	flags &= ~(t);
 }
 
-void Txj_::erase (string name) {
+void Txj_::erase (const string& name) {
 	Txj_* fp= this;
 	if (isLink()) fp= val.fptr;
 	if (fp->isType(OBJ) || fp->isType(ORDERED_OBJ)) {
@@ -4148,7 +4276,7 @@ void Txj_::erase (string name) {
 		// iterator to a node another thread erases before we lock, and
 		// dereferencing it below would be a use-after-free
 		fp->lock();
-		ffmap::iterator it= fp->val.pairs->find(name);
+		ffmap::iterator it= fp->val.pairs->find(ccpIfInPool(name));
 		if (it==fp->val.pairs->end()) {
 			fp->unlock();
 			return;
@@ -4161,7 +4289,7 @@ void Txj_::erase (string name) {
 				fmMapSequence->erase(vi);
 			}
 		}
-		delete it->second;
+		Txj_::refRelease(it->second);
 		fp->val.pairs->erase(it);
 		--size;
 		fp->unlock();
@@ -4172,7 +4300,7 @@ void Txj_::erase (int index) {
 	if (isType(ARRAY)) {
 		lock();
 		if (index<size && (*val.array)[index]) {
-			delete (*val.array)[index];
+			Txj_::refRelease((*val.array)[index]);
 			(*val.array)[index]= nullptr;
 			if (index==size-1) {
 				--size;
@@ -4210,7 +4338,7 @@ bool Txj_::erase (Txj_* value) {
 					fmMapSequence.m_pvpsMapSequence->erase(e,
 						fmMapSequence.m_pvpsMapSequence->end());
 				}
-				delete i->second;
+				Txj_::refRelease(i->second);
 				val.pairs->erase(i);
 				--size;
 				unlock();return true;
@@ -4222,7 +4350,7 @@ bool Txj_::erase (Txj_* value) {
 		int i= 0;
 		while (i<size) {
 			if ((*val.array)[i]==value) {
-				delete (*val.array)[i];
+				Txj_::refRelease((*val.array)[i]);
 				(*val.array)[i]= NULL;
 				unlock(); return true;
 			}
@@ -4231,7 +4359,7 @@ bool Txj_::erase (Txj_* value) {
 	} else if (isType(SET_TYPE)) {
 		ffset::iterator it= val.setPtr->find(value);
 		if (it!=val.setPtr->end()) {
-			delete *it;
+			Txj_::refRelease(*it);
 			val.setPtr->erase(it);
 			--size;
 			unlock(); return true;
@@ -4243,16 +4371,16 @@ bool Txj_::erase (Txj_* value) {
 bool Txj_::inherit (Txj_& rObj, TxjPObj* pFPObj) {
 	Txj_* pObj;
 	if(!pFPObj->name)pFPObj= pFPObj->pObj;
-	map<string, int>* m= nullptr;
+	map<ccp, int>* m= nullptr;
 	if (rObj.isLink()) {
 		pObj= rObj.val.fptr;
 		if (isType(ARRAY) && pObj->isType(ARRAY)) {
 			int maxSize= size<pObj->size? size : pObj->size;
-			m= new map<string, int>();
+			m= new map<ccp, int>();
 			int i= maxSize;
 			while (i>0) {
 				--i;
-				(*m)[string((ccp)*(*pObj->val.array)[i])]= i;
+				(*m)[ccpFromPool((ccp)*(*pObj->val.array)[i])]= i;
 			}
 		} else {
 			return false;
@@ -4273,11 +4401,11 @@ bool Txj_::inherit (Txj_& rObj, TxjPObj* pFPObj) {
 		} else {
 			return false;
 		}
-		m= new map<string, int>();
+		m= new map<ccp, int>();
 		int i= arr->size;
 		while (i>0) {
 			i--;
-			(*m)[string((const char*) (*arr)[i])]= i;
+			(*m)[ccpFromPool((ccp)(*arr)[i])]= i;
 		}
 		if (isType(ARRAY)) {
 			i= size;
@@ -4611,8 +4739,8 @@ bool Txj_::Iterator::operator != (const Iterator& i) {
 
 Txj_::Iterator::operator const char* () {
 	switch (type) {
-	case ORDERED_OBJ: return (*ui.pai)->first.c_str();
-	case OBJ: return ui.pi->first.c_str();
+	case ORDERED_OBJ: return (*ui.pai)->first;
+	case OBJ: return ui.pi->first;
 	}
 	return nullptr;
 }
@@ -4624,10 +4752,10 @@ Txj_::Iterator Txj_::find (const string& key) {
 			ffmap::iterator itMap;
 			if (lc=='*') {
 				string lk= key.substr(0,key.length()-1);
-				itMap= val.pairs->lower_bound(lk);
+				itMap= val.pairs->lower_bound(lk.c_str());
 				return Iterator(itMap);
 			}
-			itMap= val.pairs->find(key);
+			itMap= val.pairs->find(key.c_str());
 			FeaturedMember fm= getFeaturedMember(FM_MAP_SEQUENCE);
 			if (fm.m_pvpsMapSequence) {
 				vector<ffmap::iterator>::iterator itVecMap=
@@ -4651,10 +4779,10 @@ Txj_::Iterator Txj_::find (const string& key) {
 			ffmap::iterator itMap;
 			if (lc=='*') {
 				string lk= key.substr(0,key.length()-1);
-				itMap= val.pairs->lower_bound(lk);
+				itMap= val.pairs->lower_bound(lk.c_str());
 				return Iterator(itMap);
 			}
-			itMap= val.pairs->find(key);
+			itMap= val.pairs->find(key.c_str());
 			return Iterator(itMap);
 		}
 		case ARRAY: {
@@ -4769,7 +4897,7 @@ bool operator == (const Txj_& lhs, const Txj_& rhs) {
 
 	return (const void*)&lhs<(const void*)&rhs;
 }
-
+/*
 Txj_* Txj_::MarkAsUpdatable(string& link, const Txj_& rParent) {
 	if (rParent.isType(OBJ) || rParent.isType(ARRAY)) {
 		Txj_* pOrigParent= const_cast<Txj_*> (&rParent);
@@ -4811,7 +4939,7 @@ Txj_* Txj_::UnMarkUpdatable (string& link, const Txj_& rParent) {
 	Txj_* pParent= const_cast<Txj_*> (&rParent);
 	if (rParent.isType(OBJ) || rParent.isType(ARRAY)) {
 		map<Txj_*, Txj_*> rOrigParent;
-		vector<string> prop;
+		vector<ccp> prop;
 		explode(".", link, prop);
 		for (int i= 0; i<prop.size(); ++i) {
 			if (pParent->isType(OBJ) && pParent->val.pairs->find(prop[i])==
@@ -4857,13 +4985,15 @@ Txj_* Txj_::UnMarkUpdatable (string& link, const Txj_& rParent) {
 
 Txj_::LinkNRef Txj_::GetLinkString (TxjPObj* pObj) {
 	LinkNRef lnr;
+	string slink;
 	while (pObj!=NULL) {
-		lnr.m_sLink= *pObj->name+"."+lnr.m_sLink;
+		slink= string(*pObj->name)+"."+slink;
 		lnr.m_pRef= pObj->value;
 		pObj= pObj->pObj;
 	}
+	lnr.m_sLink= cppFromPool(slink.c_str());
 	return lnr;
-}
+	}*/
 
 int Txj_::save (
 	bool json, bool printComments, unsigned int indent,

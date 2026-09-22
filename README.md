@@ -2,7 +2,7 @@
 It's not just a fast C++ JSON parser!
 
 With its intuitive C++ subscript operator, Texject goes beyond JSON to provide an extensible data language and C++ framework for structured data, making it
-easy to read, access, modify, and persist data. It is thread safe!
+easy to read, access, modify, and persist data.
 
 The name Texject is coined from "text object."
 
@@ -25,9 +25,9 @@ lastName: "Doe"
   - `oob`: OrderedOBject, order of pairs is preserverd, enclosure: `{}`
   - `arr`: Array, simple array of Texjects, enclosure: `[]`
   - `set`: Set, duplicate members are discarded, enclosure: `{}`
-- Baic types: numbers, strings, boolean, binaray, xml, time stamps.
-- When serialized to JSON, maximum features are put into JSON and remaining
-  that can not be JSONed are cleanly discarded.
+- Baic types: numbers, strings, boolean, binary, xml, time stamps.
+- When serialized to JSON, maximum compaible features are put into JSON and
+  remaining that can not be JSONed are cleanly discarded.
 - Its fast, lite and thread safe!
 
 ## Parsing simple json:
@@ -133,10 +133,9 @@ testScore: [[
 ],
 
 "biography": "
-	He is smart, brilliant, genius, empathetic, creative, connective, patient,
-	handsome, valient, romantic;) After all he made JSON with multi line string
-	and comments that are stringified only while saving the texject else they
-	are dropped unless printComment argument is set in stringify call.
+	He made JSON with multi line string and comments that are stringified only
+	while saving the texject else they are dropped unless printComment argument
+	is set in stringify call.
 ",
 
 #comment3: "Its an obj; enclosed in {}; order not preserved",
