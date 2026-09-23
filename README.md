@@ -133,7 +133,7 @@ testScore: [[
 ],
 
 "biography": "
-	He made JSON with multi line string and comments that are stringified only
+	He made JSON with multi line string and comments are stringified only
 	while saving the texject else they are dropped unless printComment argument
 	is set in stringify call.
 ",
@@ -172,6 +172,13 @@ Sports he play: {"cricket", "badminton", "tt"}
   `.prettyString(true)` upon which it removes ` | [favlang]` and
   quotes all strings.
 
+## links
+- In `Employee.oob.txj`, `favLang` in after inheritane operator is a link.
+- When a link is casted it casts the target.
+- When a link is assigned it doesn't effect the target. To assign target via
+  link, use `*favLang= <NewValue>`
+- The subscript operator will return link if its a link.
+
 ## Build and Install
 ```
 git --depth=1 -b clang clone https://github.com/gowthamkudupudi/ferrybase.git
@@ -191,10 +198,3 @@ sudo make install
 
 ## Linker option
 `-ltxj`
-
-## links
-- In `Employee.oob.txj`, `favLang` in after inheritane operator is a link.
-- When a link is casted it casts the target.
-- When a link is assigned it doesn't effect the target. To assign target via
-  link, use `*favLang= <NewValue>`
-- the subscript operator will return link if its a link.

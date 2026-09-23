@@ -153,7 +153,7 @@ public:
       bool        operator != (const Iterator& i);
       Txj_*        operator -> ();
       Txj_&        operator * ();
-      operator    const char* ();
+      operator    ccp ();
 		
 		/**
 		 * Should be only used on OBJ type iterators
@@ -445,6 +445,10 @@ public:
 		TxjP_ operator [] (T t) {
 			return TxjP_(&((*p)[t]));
 		}
+		template <typename T>
+		operator T () {
+			return (T)(*p);
+		}
 		Txj_* get () const;
 		explicit operator bool () const;
 		Txj_* release ();
@@ -653,6 +657,7 @@ public:
 	template <typename T>
 	Txj_& operator= (const T& t) {
 		lock();
+		insertInParent();
 		if(isQType(UPDATE)){
 			FeaturedMember fm= getFeaturedMember(FM_UPDATE_TIMESTAMP);
 			fm.m_pTimeStamp->update();
@@ -693,13 +698,14 @@ public:
 			return *reinterpret_cast<T*>(val.vptr);
 		}
 	}
-	operator const char* ();
+	operator ccp ();
 	operator double ();
 	operator float ();
 	operator bool ();
 	operator int ();
 	operator unsigned int ();
 	operator long ();
+	operator TxjP_ () {return TxjP_(this);};
 	void copy (
 		const Txj_& orig, COPY_FLAGS cf= COPY_NONE,
 		TxjPObj* pObj= NULL
@@ -727,7 +733,10 @@ private:
 };
 static Txj_ nullTxj;
 ostream& operator << (ostream& out, const Txj_& f);
+ostream& operator << (ostream& out, const Txj_::TxjP_& f);
 
 bool operator < (const Txj_& lhs, const Txj_& rhs);
+bool operator < (const Txj_::TxjP_& lhs, const Txj_::TxjP_& rhs);
 
+typedef Txj_::TxjP_ TxjP_;
 #endif
