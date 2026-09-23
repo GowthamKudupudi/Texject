@@ -284,7 +284,15 @@ public:
 		FeaturedMember m_uFM;
 		FeaturedMember m_pFMH;
 	};
-	
+	union Key_ {
+		ccp key;
+		size_t index= 0;
+		bool operator < (const Key_& k) const {return key<k.key;};
+	};
+	typedef map<Key_, Txj_*> orphmap;
+	static map<Txj_*, orphmap> orphans;
+	shared_mutex orphanMtx;
+	void delOrphan (FeaturedMember& fm);
 	struct TxjExt {
 		Txj_* base= NULL;
 	};
@@ -436,6 +444,7 @@ public:
 		explicit TxjP_ (Txj_* p_);
 		TxjP_ (const TxjP_& o);
 		TxjP_ (TxjP_&& o);
+		TxjP_& operator () (Txj_* p_);
 		TxjP_& operator= (const TxjP_& o);
 		TxjP_& operator= (TxjP_&& o);
 		~TxjP_ ();

@@ -144,7 +144,7 @@ physiology: {
 	height: "6 foot"
 },
 
-#comment2: "Its a set! Duplicates are dropped!",
+#comment4: "Its a set! Duplicates are dropped!",
 sports: {"cricket", "badminton", "tt"}
 ```
 - C++:

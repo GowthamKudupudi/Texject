@@ -57,6 +57,7 @@ const char Txj_::TXJ_EXT[16][4]= {"udf", "bul", "bin", "num", "tim", "str",
 map<Txj_*, set<Txj_::TxjIterator> > Txj_::sm_mUpdateObjs;
 set <Txj_::Locker_*> Txj_::Locker_::lockerSet;
 Txj_::Locker_ Txj_::lkr;
+map<Txj_*, Txj_::orphmap> Txj_::orphans;
 
 struct TxjRefReg {
 	mutex mtx;
@@ -80,15 +81,13 @@ void Txj_::refErase (Txj_* p) {
 }
 void Txj_::refRelease (Txj_* p) {
 	if (!p) return;
-	bool doDelete= false;
 	{
 		TxjRefReg& r= txjRefReg();
 		unique_lock<mutex> lk(r.mtx);
 		auto it= r.refs.find(p);
-		if (it==r.refs.end()) return;
+		if (it==r.refs.end()) {delete p; return;}
 		if (--it->second) return;
 		r.refs.erase(it);
-		doDelete= true;
 	}
 	delete p;
 }
@@ -101,6 +100,12 @@ Txj_::TxjP_::TxjP_ (const TxjP_& o) : p(o.p) {
 }
 Txj_::TxjP_::TxjP_ (TxjP_&& o) : p(o.p) {
 	o.p= nullptr;
+}
+Txj_::TxjP_& Txj_::TxjP_::operator () (Txj_* p_) {
+	if (p) refRelease(p);
+	p= p_;
+	if (p) refAcquire(p);
+	return *this;
 }
 Txj_::TxjP_& Txj_::TxjP_::operator= (const TxjP_& o) {
 	if (this!=&o && p!=o.p) {
@@ -160,7 +165,6 @@ void iterSeq (vector<ffmap::iterator>* vecPtr, ffmap::iterator& i, int& ind,
 }
 
 Txj_::Txj_ () {
-	refAcquire(this);
 	//	  type = UNDEFINED;
 	//	  qtype = NONE;
 	//	  etype = ENONE;
@@ -171,7 +175,6 @@ Txj_::Txj_ () {
 }
 
 Txj_::Txj_ (OBJ_TYPE t) {
-	refAcquire(this);
 	init(t);
 }
 void Txj_::init (OBJ_TYPE t) {
@@ -218,13 +221,11 @@ void Txj_::init (OBJ_TYPE t) {
 }
 
 Txj_::Txj_ (const Txj_& orig, COPY_FLAGS cf, TxjPObj* pObj) {
-	refAcquire(this);
 	copy(orig, cf, pObj);
 }
 
 Txj_::Txj_ (const string& ffjson, int* ci, int indent, Txj_::TxjPObj* pObj)
 	: size(0), flags(0) {
-	refAcquire(this);
 	//Txj_::TxjPObj* pObj) {
 	init(ffjson, ci, indent, pObj);
 }
@@ -735,6 +736,9 @@ void Txj_::init (
 							return;
 						}
 						prNew= val.pairs->find(objId);
+						if (prNew->second!=nullptr) {
+							delete prNew->second;
+						}
 						prNew->second= obj;
 						if (isType(ORDERED_OBJ)) {
 							goto SeqIns;
@@ -2199,6 +2203,10 @@ Txj_::~Txj_ () {
 
 void Txj_::freeObj (bool bAssignment) {
 	switch (getType()) {
+	case NEW_MEMBER: {
+		FeaturedMember fm= getFeaturedMember(FM_KEY);
+		delOrphan(fm);
+		break;}
 	case ORDERED_OBJ:
 	case OBJ: {
 		ffmap::iterator i;
@@ -2301,6 +2309,7 @@ Txj_::OBJ_TYPE Txj_::objectType (string ffjson) {
 Txj_& Txj_::operator [] (void) {
 	lock();
 	insertInParent();
+	Txj_* obj;
 	if (isLink()) {
 		unlock();
 		return (*val.fptr)[];
@@ -2308,14 +2317,20 @@ Txj_& Txj_::operator [] (void) {
 	  settype:
 		setType(SET_TYPE);
 		val.setPtr= new ffset();
+		orphanMtx.lock();
+		orphmap& om= orphans[this];
+		Key_ k;
+		Txj_*& ko= om[k];
+		if (!ko) {
+			ko= obj= new Txj_(NEW_MEMBER);
+			obj->val.fptr= this;
+		} else {
+			obj= ko;
+		}
+		orphanMtx.unlock();
 	} else if (isType(OBJ) && size==0) {
 		freeObj();
 		goto settype;
-	}
-	Txj_* obj= new Txj_();
-	if (isType(SET_TYPE)) {
-		obj->setType(NEW_MEMBER);
-		obj->val.fptr= this;
 	}
 	unlock();
 	return *obj;
@@ -2374,10 +2389,19 @@ Txj_& Txj_::operator [] (const char* prop) {
 			}
 		}}
 	}
-	obj= new Txj_(NEW_MEMBER);
-	FeaturedMember fm; fm.key= ccpFromPool(prop);
-	obj->insertFeaturedMember(fm, FM_KEY);
-	obj->val.fptr= this;
+	orphanMtx.lock();
+	orphmap& om= orphans[this];
+	Key_ k;k.key= ccpFromPool(prop);
+	Txj_*& ko= om[k];
+	if (!ko) {
+		ko= obj= new Txj_(NEW_MEMBER);
+		FeaturedMember fm; fm.key= k.key;
+		obj->insertFeaturedMember(fm, FM_KEY);
+		obj->val.fptr= this;
+	} else {
+		obj= ko;
+	}
+	orphanMtx.unlock();
 	if (locked) unlock(); else unlockShared();
 	return *obj;
 }
@@ -2416,10 +2440,19 @@ Txj_& Txj_::operator [] (const int index) {
 			}
 		} break; }
 	}}
-	obj= new Txj_(NEW_MEMBER);
-	FeaturedMember fm; fm.index= index;
-	obj->insertFeaturedMember(fm, FM_KEY);
-	obj->val.fptr= this;
+	orphanMtx.lock();
+	orphmap& om= orphans[this];
+	Key_ k;k.index= index;
+	Txj_*& ko= om[k];
+	if (!ko) {
+		ko= obj= new Txj_(NEW_MEMBER);
+		FeaturedMember fm; fm.index= index;
+		obj->insertFeaturedMember(fm, FM_KEY);
+		obj->val.fptr= this;
+	} else {
+		obj= ko;
+	}
+	orphanMtx.unlock();
 	if (locked) unlock(); else unlockShared();
 	return *obj;
 };
@@ -3299,6 +3332,15 @@ Txj_::operator unsigned int () {
 	return (unsigned int) fp->val.number;
 }
 
+void Txj_::delOrphan (FeaturedMember& fm) {
+	orphanMtx.lock();
+	orphmap& om= orphans[this];
+	Key_ k;k.key= fm.key;
+	om.erase(om.find(k));
+	if (!om.size())
+		orphans.erase(orphans.find(this));
+	orphanMtx.unlock();
+}
 void Txj_::insertInParent () {
 	if (!isType(NEW_MEMBER)) {
 		return;
@@ -3306,9 +3348,11 @@ void Txj_::insertInParent () {
 	Txj_& p= *val.fptr;
 	p.lock();
 	FeaturedMember fm= getFeaturedMember(FM_KEY);
+	delOrphan(fm);
 	switch (p.getType()) {
 	case SET_TYPE: if (p.val.setPtr->insert(this).second) {
 			++p.size;
+			refAcquire(this);
 		} break;
 	case OBJ:
 	case ORDERED_OBJ: {
@@ -3319,6 +3363,7 @@ void Txj_::insertInParent () {
 			fm.m_pvpsMapSequence->push_back(prNew.first);
 		}
 		++p.size;//should b increase only after getFeatruredMember
+		refAcquire(this);
 	} break;
 	case ARRAY: if (p.val.array->size()<=fm.index) {
 			for (int i=p.size; i<fm.index; ++i) {
@@ -3330,6 +3375,7 @@ void Txj_::insertInParent () {
 		} else {
 			(*p.val.array)[fm.index]= this;
 		}
+		refAcquire(this);
 	}
 	p.unlock();
 }

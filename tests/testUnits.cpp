@@ -772,8 +772,10 @@ int test31 () {
 	ccp user= rbsid["user"];
 	Txj_& wpSub= rbsid["wpSub"];
 	Txj_& keys= wpSub["keys"];
-	ccp endpoint= wpSub["endpoint"];
-	ccp p256dh= keys["p256dh"], authKe= keys["auth"];
+	Txj_* endpointP= &wpSub["endpoint"];
+	ccp endpoint= *endpointP;
+	Txj_ *p256dhP= &keys["p256dh"], *authKeP= &keys["auth"];
+	ccp p256dh= *p256dhP, authKe= *authKeP;
 	bool wpSubNull= !wpSub;
 	ftsEnd.update();
 	ftsDiff= ftsEnd-ftsStart;
@@ -789,6 +791,7 @@ int test31 () {
 		" !authKe"<< endl;
 	if (user && !strcmp(user, "gowtham") && wpSub && !endpoint && !p256dh &&
 		 !authKe) {
+		delete authKeP; delete p256dhP; delete endpointP;
 		cout<< "PASSED"<< endl<< endl;
 		return 1;
 	}
@@ -869,7 +872,25 @@ int test33 () {
 }
 
 int test34 () {
-	cout<< "## 11. empty string, obj and array test"<< endl;
+	cout<< "## 11. dup key test"<< endl;
+	ftsStart.update();
+	Txj_ t("{a:1, a:2}");
+   cout<< "t[\"a\"]: "<< t["a"]<< endl;
+	ftsEnd.update();
+	ftsDiff= ftsEnd-ftsStart;
+	cout<< "%TEST_FINISHED% in "<< ftsDiff<< "sec"<< endl;
+	printMemUsage();
+	cout<< "Testing: t[\"a\"]==2"<< endl;
+	if (2==(int)t["a"]) {
+		cout<< "PASSED"<< endl<< endl;
+		return 1;
+	}
+	cout<< "FAILED"<< endl<< endl;
+	return 0;
+}
+
+int test35 () {
+	cout<< "## 12. empty string, obj and array test"<< endl;
 	ccp cobj= "{}", carr= "[]", cvoid= "";
 	ftsStart.update();
 	Txj_ otxj(cobj), atxj(carr), vtxj(cvoid);
@@ -893,8 +914,8 @@ int test34 () {
 	return 0;
 }
 
-int test35 () {
-	cout<< "## 12. char[] test" <<endl;
+int test36 () {
+	cout<< "## 13. char[] test" <<endl;
 	char un[48]= "gowtham";
 	ftsStart.update();
  	Txj_ fun;
@@ -915,8 +936,8 @@ int test35 () {
 	return 0;
 }
 
-int test36 () {
-	cout<< "## 13. table test"<< endl;
+int test37 () {
+	cout<< "## 14. table test"<< endl;
 	ccp istr= "file://tests/data/table.oob.txj";
 	ftsStart.update();
 	Txj_ t(istr);
@@ -937,8 +958,8 @@ int test36 () {
 	return 0;
 }
 
-int test37 () {
-	cout<< "## 14. nested files links copy stringify test"<< endl;
+int test38 () {
+	cout<< "## 15. nested files links copy stringify test"<< endl;
 	ccp istr= "file://tests/data/red/users2.obj.txj";
 	ftsStart.update();
 	Txj_ r, t(istr);
@@ -962,8 +983,8 @@ int test37 () {
 	return 0;
 }
 
-int test38 () {
-	cout<< "## 15. comments test"<< endl;
+int test39 () {
+	cout<< "## 16. comments test"<< endl;
 	ccp istr= "file://tests/data/comment.oob.txj";
 	ftsStart.update();
 	Txj_ t(istr);
@@ -993,8 +1014,8 @@ int test38 () {
 	return 0;
 }
 
-int test39 () {
-	cout<< "## 16. timestamp test"<< endl;
+int test40 () {
+	cout<< "## 17. timestamp test"<< endl;
 	ftsStart.update();
 	ccp istr= "file://tests/data/empty.obj.txj";
 	Txj_ t(istr);
@@ -1021,8 +1042,8 @@ int test39 () {
 	return 0;
 }
 
-int test40 () {
-	cout<< "## 17. table copy test"<< endl;
+int test41 () {
+	cout<< "## 18. table copy test"<< endl;
 	ccp istr= "file://tests/data/table.oob.txj";
 	ftsStart.update();
 	Txj_ t(istr);
@@ -1044,8 +1065,8 @@ int test40 () {
 	return 0;
 }
 
-int test41 () {
-	cout<< "## 18. malformed Texject crash test"<< endl;
+int test42 () {
+	cout<< "## 19. malformed Texject crash test"<< endl;
 	ftsStart.update();
 	const char* cases[]= {
 		"",
@@ -1227,7 +1248,7 @@ static bool noCntnrIn (Txj_* c) {
 	return true;
 }
 
-static Txj_::TxjP_ makeLeaf () {
+static Txj_* makeLeaf () {
 	uniform_int_distribution<int> dist(0, 4);
 	int t= dist(t41_rng);
 	Txj_* p= new Txj_();
@@ -1243,7 +1264,7 @@ static Txj_::TxjP_ makeLeaf () {
 		*p= Txj_::Blob_{d, 8};
 		break;}
 	}
-	return Txj_::TxjP_(p);
+	return p;
 }
 static Txj_* insertIntoCntnr (Txj_& c, Txj_& child);
 static Txj_* t41_makeSimpleContainer () {
@@ -1312,7 +1333,7 @@ static void populateCntnr (int a) {
 	//printf("a: %d\n", a);
 	for (int i=0; i< thrdTstMaxMem/4/numThreads; ++i) {
 		flDbg(TXJ_THRDTST, "%d: %d\n", tid, i);
-		Txj_::TxjP_ pLf= makeLeaf();
+		Txj_* pLf= makeLeaf();
 		for (int j=0; j<4; ++j) {
 //		for (int j=0; j<1; ++j) {
 			Txj_& c= cntnr1[j];
@@ -1324,11 +1345,11 @@ static void populateCntnr (int a) {
 			totalTxjsMtx.unlock();
 			c.unlock(thrdTstLkr);
 		}
-		Txj_::refRelease(&*pLf);
+		delete pLf;
 	}
 }
-int test42 () {
-	cout << "## 19. 1 container thread safety stress test" << endl;
+int test43 () {
+	cout << "## 20. 1 container thread safety stress test" << endl;
 	cntnr1[0].init(Txj_::OBJ);
 	cntnr1[1].init(Txj_::ORDERED_OBJ);
 	cntnr1[2].init(Txj_::ARRAY);
@@ -1351,8 +1372,8 @@ int test42 () {
 	return 1;
 }
 
-int test43 () {
-	cout<< "## 20. shared ptr test"<< endl;
+int test44 () {
+	cout<< "## 21. shared ptr test"<< endl;
 	ftsStart.update();
 	TxjP_ t(new Txj_("7"));
 	cout<< "t: "<< t<< endl;
@@ -1522,7 +1543,7 @@ static void ppltTr (int) {
 			uniform_int_distribution<int> td(0, 3);
 			Txj_::TxjP_ pt;
 			if (td(t41_rng) <= 2) {
-				pt= makeLeaf();
+				pt(makeLeaf());
 			} else {
 				pt= makeContainer();
 			}
@@ -1600,8 +1621,8 @@ static void ppltTr (int) {
 		c->unlockShared(thrdTstLkr);
 	}
 }
-int test44 () {
-	cout << "## 21. tree thread safety stress test" << endl;
+int test45 () {
+	cout << "## 22. tree thread safety stress test" << endl;
 	totalTxjs= 0;
 	ThrdTstTr.init("file://tests/data/ThrdTstTr.obj.txj");
 	cout<< "ThreadCount: "<< numThreads<< ", ObjectCount: "<< thrdTstMaxMem<<
@@ -1796,21 +1817,21 @@ int main (int argc, char** argv) {
 //	++tc; pc+= test30();
 //	++tc; pc+= test31();
 //	++tc; pc+= test32();
-//	++tc; pc+= test33();
-//	++tc; pc+= test34();
-//	++tc; pc+= test35();
-//	++tc; pc+= test36();
-//	++tc; pc+= test37();
-//	++tc; pc+= test38();
-//	++tc; pc+= test39();
-//	++tc; pc+= test40();
-//	++tc; pc+= test41();
-//	numThreads= 1;
-//	++tc; pc+= test42();
-//	numThreads= NUM_THREADS;
-//	++tc; pc+= test42();
-	numThreads= 1;
-	++tc; pc+= test43();
+	++tc; pc+= test33();
+	// ++tc; pc+= test34();
+	// ++tc; pc+= test35();
+	// ++tc; pc+= test36();
+	// ++tc; pc+= test37();
+	// ++tc; pc+= test38();
+	// ++tc; pc+= test39();
+	// ++tc; pc+= test40();
+	// ++tc; pc+= test41();
+	// numThreads= 1;
+	// ++tc; pc+= test42();
+	// numThreads= NUM_THREADS;
+	// ++tc; pc+= test42();
+	// numThreads= 1;
+	// ++tc; pc+= test43();
 
 	ftsSuiteEnd.update();
    ftsDiff= ftsSuiteEnd-ftsSuiteStart;
