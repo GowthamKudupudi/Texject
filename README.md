@@ -204,9 +204,7 @@ If you find Texject useful and would like to support its development,
 donations are greatly appreciated.
 
 ### Monero (XMR)
-
-YOUR_XMR_ADDRESS_HERE
+89cLTvnbX5SYpKKcHycAfYRGMZBEJ1VKQ1YorAE4gjQb4SE4XKLTomTZcwJrhdr4B5SWcDa63vJgD8HvcBeusHvZ97hUiSY
 
 ### Nano (XNO)
-
-YOUR_XNO_ADDRESS_HERE
+nano_3i6jsqrbeyr35yxr1htdhkpfksz7amx77589h13waj3reaziwxrjsk75z8q7
