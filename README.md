@@ -198,3 +198,15 @@ sudo make install
 
 ## Linker option
 `-ltxj`
+
+## Donate!
+If you find Texject useful and would like to support its development,
+donations are greatly appreciated.
+
+### Monero (XMR)
+
+YOUR_XMR_ADDRESS_HERE
+
+### Nano (XNO)
+
+YOUR_XNO_ADDRESS_HERE

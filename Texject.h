@@ -291,8 +291,15 @@ public:
 	};
 	typedef map<Key_, Txj_*> orphmap;
 	static map<Txj_*, orphmap> orphans;
-	shared_mutex orphanMtx;
+	static shared_mutex orphanMtx;
+	static shared_mutex sntncMtx;
+	void sentence ();
+	void adopt ();
+	bool inSentence();
 	void delOrphan (FeaturedMember& fm);
+	void delOrphanNoLk (FeaturedMember& fm);
+	void delOrphans ();
+	set<Txj_*>& sentenced ();
 	struct TxjExt {
 		Txj_* base= NULL;
 	};
@@ -447,12 +454,20 @@ public:
 		TxjP_& operator () (Txj_* p_);
 		TxjP_& operator= (const TxjP_& o);
 		TxjP_& operator= (TxjP_&& o);
+		// template <typename T>
+		// TxjP_& operator= (T& v) {
+		// 	(*p)= v;
+		// 	return *this;
+		// }
 		~TxjP_ ();
 		Txj_* operator-> () const;
 		Txj_& operator* () const;
 		template <typename T>
 		TxjP_ operator [] (T t) {
-			return TxjP_(&((*p)[t]));
+			Txj_* ret= &p->getMem(t, true);
+			TxjP_ tp(ret);
+			refRelease(ret);
+			return tp;
 		}
 		template <typename T>
 		operator T () {
@@ -465,6 +480,7 @@ public:
 	};
 	static void refAcquire (Txj_* p);
 	static void refRelease (Txj_* p);
+	static void delIfNoRef (Txj_* p);
 	static void refErase (Txj_* p);
 	
 	static const FeaturedMemType m_FM_LAST= FM_PARENT;
@@ -649,7 +665,8 @@ public:
 	Txj_& operator [] (const string& prop);
 	Txj_& operator [] (const int index);
 	Txj_& operator [] (void);
-	
+	Txj_& getMem (ccp prop, bool acquireRef= false);
+	Txj_& getMem (int index, bool acquireRef= false);
 	template <typename T>
 	Txj_& operator= (T* t) {
 		freeObj ();

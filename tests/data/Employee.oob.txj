@@ -1,26 +1,29 @@
 name: "Gowtham",
-"id": 1729,
+id: 1729,
 isProgrammer: true,
 
 #comment1: "Its a table! '|' is inheritance operator",
 favLang: [
 	"C++", "Javascript", "lisp"
 ],
-testScore: [[
-	    8,            7,      6
-], [
-	    7,            8,      3
-], [
-	    9,            5,      8
-]] | [favLang],
+
+testScore: [
+	[
+		8, 7, 6
+	], [
+		7, 8, 3
+	], [
+		9, 5, 8
+	]
+] | [favLang],
 
 #comment2: "Its an oob enclosed in [] where as obj(object) is enclosed in {}",
-"address": [
-	"town": "KAKINADA",
+address: [
+	town: "KAKINADA",
 	country: "Bharath"
 ],
 
-"biography": "
+biography: "
 	He made JSON with multi line string and comments are stringified only
 	while saving the texject else they are dropped unless printComment argument
 	is set in stringify call.
@@ -33,4 +36,4 @@ physiology: {
 },
 
 #comment4: "Its a set! Duplicates are dropped!",
-sports: {"cricket", "badminton", "tt"}
+sports: {"cricket","badminton","tt"}
