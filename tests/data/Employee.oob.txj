@@ -1,14 +1,15 @@
 name: "Gowtham",
 id: 1729,
 isProgrammer: true,
+
+#comment1: "Its a table! '|' is inheritance operator",
 favLang: [
 	"C++", "Javascript", "lisp"
 ],
 
-#comment1: "It's a table",
 testScore: [
 	[
-		8, 7, 14
+		8, 7, 6
 	], [
 		7, 8, 3
 	], [
@@ -16,22 +17,23 @@ testScore: [
 	]
 ] | [favLang],
 
-#comment2: "its a set! And comments are not stringified",
+#comment2: "Its an oob enclosed in [] where as obj(object) is enclosed in {}",
 address: [
 	town: "KAKINADA",
 	country: "Bharath"
 ],
 
 biography: "
-	He is smart, brilliant, genius, empathetic, creative, connective, patient,
-	handsome, valient, romantic;) After all he made JSON with multi line string!
+	He made JSON with multi line string and comments are stringified only
+	while saving the texject else they are dropped unless printComment argument
+	is set in stringify call.
 ",
 
-#comment3: "its an obj; enclosed in {}; order not preserved",
+#comment3: "Its an obj; enclosed in {}; order not preserved",
 physiology: {
-	height: "6 foot",
-	iris: "blue"
+	iris: "blue",
+	height: "6 foot"
 },
 
-#comment2: "its a set! And comments are not stringified",
-sports: {"badminton","cricket","tt"}
+#comment4: "Its a set! Duplicates are dropped!",
+sports: {"cricket","badminton","tt"}

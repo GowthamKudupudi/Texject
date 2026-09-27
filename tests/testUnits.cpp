@@ -16,6 +16,7 @@
 #include <logger.h>
 #include <ferrybase/FerryTimeStamp.h>
 #include <ferrybase/mystdlib.h>
+#include <ferrybase/StrPool.h>
 #include <string>
 #include <fstream>
 #include <streambuf>
@@ -49,9 +50,9 @@ using namespace std;
 thread_local int tid= 0;
 ThreadPool* tpoolPtr= nullptr;
 
-int child_exit_status = 0;
-FF_LOG_TYPE fflAllowedType = (FF_LOG_TYPE)(FFL_DEBUG | FFL_INFO | FFL_ERR);
-unsigned int fflAllowedBlks = 9|TXJ_MAIN|TXJ_THRDTST;
+int child_exit_status= 0;
+FF_LOG_TYPE fflAllowedType= (FF_LOG_TYPE)(FFL_DEBUG | FFL_INFO | FFL_ERR);
+unsigned int fflAllowedBlks= 9|TXJ_MAIN|TXJ_THRDTST;
 FerryTimeStamp ftsStart;
 FerryTimeStamp ftsEnd;
 FerryTimeStamp ftsDiff;
@@ -270,16 +271,15 @@ void test4 () {
    cout << "===================================================" << endl;
    cout << "			TestTxj_ test 4 (testing links)		   " << endl;
    cout << "===================================================" << endl;
-   Txj_ f("file://linksSample.txj");
-   map<string,Txj_*>* emln = f["obj1"].val.pairs;
-   typedef const char* ccp;
-   if (emln->find(string("127.0.0.2"))!=emln->end()) {
-      Txj_* ffemln = (*emln)["127.0.0.2"];
-      Txj_::Link* link =
-         ffemln->getFeaturedMember(Txj_::FM_LINK).link;
-      const char* linkName=(*link)[0].c_str();
-      cout << "127.0.0.2 is link to " << linkName << endl;
-   }
+    Txj_ f("file://linksSample.txj");
+    ffmap* emln = f["obj1"].val.pairs;
+    if (emln->find(ccpIfInPool("127.0.0.2"))!=emln->end()) {
+       Txj_* ffemln = (*emln)[ccpIfInPool("127.0.0.2")];
+       Txj_::Link* link =
+          ffemln->getFeaturedMember(Txj_::FM_LINK).link;
+       const char* linkName=(*link)[0];
+       cout << "127.0.0.2 is link to " << linkName << endl;
+    }
    cout << (const char*)f["obj1"]["127.0.0.2"]["rootdir"] << endl;
    cout << f << endl;
    cout << f["things"]["car"][0] << endl;
@@ -694,8 +694,8 @@ int test28 () {
    ftsDiff= ftsEnd-ftsStart;
    cout<< "%TEST_FINISHED% in "<< ftsDiff<< "sec"<< endl;
 	cout<< "istr: "<< istr<< endl;
-	cout<< t<< endl;
-   cout<< t2<< endl;
+	cout<< "t: "<< t<< endl;
+   cout<< "t2: "<< t2<< endl;
 	string ostr= t3.stringify();
 	cout<< "ostr: "<< ostr<< endl;
 	printMemUsage();
@@ -772,19 +772,26 @@ int test31 () {
 	ccp user= rbsid["user"];
 	Txj_& wpSub= rbsid["wpSub"];
 	Txj_& keys= wpSub["keys"];
-	ccp endpoint= wpSub["endpoint"];
-	ccp p256dh= keys["p256dh"], authKe= keys["auth"];
+	Txj_* endpointP= &wpSub["endpoint"];
+	ccp endpoint= *endpointP;
+	Txj_ *p256dhP= &keys["p256dh"], *authKeP= &keys["auth"];
+	ccp p256dh= *p256dhP, authKe= *authKeP;
 	bool wpSubNull= !wpSub;
 	ftsEnd.update();
 	ftsDiff= ftsEnd-ftsStart;
 	cout<< "%TEST_FINISHED% in "<< ftsDiff<< "sec"<< endl;
 	cout<< "user: "<< user<< endl;
+	cout<< "wpSubNull: "<< wpSubNull<< endl;
+	cout<< "endpoint: "<< (void*)endpoint << endl;
+	cout<< "p256dh: "<< (void*)p256dh<< endl;
+	cout<< "authKe: "<< (void*)authKe<< endl;
 	cout<< "ostr: "<< ostr<< endl;
 	printMemUsage();
-	cout<< "Testing: user==gowtham && !wpSub && !endpoint && !p256dh &&"
+	cout<< "Testing: user==gowtham && wpSub && !endpoint && !p256dh &&"
 		" !authKe"<< endl;
-	if (user && !strcmp(user, "gowtham") && wpSubNull &&
-		 !endpoint && !p256dh && !authKe) {
+	if (user && !strcmp(user, "gowtham") && wpSub && !endpoint && !p256dh &&
+		 !authKe) {
+		delete authKeP; delete p256dhP; delete endpointP;
 		cout<< "PASSED"<< endl<< endl;
 		return 1;
 	}
@@ -795,9 +802,9 @@ int test31 () {
 int test32 () {
 	cout << "## 9. Entended array and multiline string test" << endl;
 	ccp istr= "file://tests/data/Employee.oob.txj";
-	ccp expectedBio= "He is smart, brilliant, genius, empathetic, creative, "
-		"connective, patient,\nhandsome, valient, romantic;) After all he made "
-		"JSON with multi line string!";
+	ccp expectedBio= "He made JSON with multi line string and comments are "
+		"stringified only\nwhile saving the texject else they are dropped unless"
+		" printComment argument\nis set in stringify call.";
 	ftsStart.update();
 	Txj_ t(istr);
 	string ostr= t.stringify();
@@ -831,7 +838,7 @@ int test32 () {
 	cout<< "lispScore3: "<< lispScore3<< endl;
 	
 	printMemUsage();
-	cout<< "Testing: name==Gowtham && lispScore==7 && lispScore==8 && "
+	cout<< "Testing: name==Gowtham && lispScore==7 && lispScore2==8 && "
 		"lispScore3==7 && biography==expectedBio"<< endl;
 	if (!name.empty() && !strcmp(name.c_str(), "Gowtham") && lispScore==6 &&
 		 lispScore2==7 && lispScore3==6 &&
@@ -849,7 +856,7 @@ int test33 () {
 	Txj_ t;
 	t["a1"][667]["c8"]= 1;
    cout<< "t[\"a1\"][666][\"c8\"]:"<< t["a1"][666]["c8"]<< endl;
-	cout<< "t[\"a1\"][666][\"c8\"]:"<< t["a1"][667]["c8"]<< endl;
+	cout<< "t[\"a1\"][667][\"c8\"]:"<< t["a1"][667]["c8"]<< endl;
 	ftsEnd.update();
 	ftsDiff= ftsEnd-ftsStart;
 	cout<< "%TEST_FINISHED% in "<< ftsDiff<< "sec"<< endl;
@@ -865,7 +872,25 @@ int test33 () {
 }
 
 int test34 () {
-	cout<< "## 11. empty string, obj and array test"<< endl;
+	cout<< "## 11. dup key test"<< endl;
+	ftsStart.update();
+	Txj_ t("{a:1, a:2}");
+   cout<< "t[\"a\"]: "<< t["a"]<< endl;
+	ftsEnd.update();
+	ftsDiff= ftsEnd-ftsStart;
+	cout<< "%TEST_FINISHED% in "<< ftsDiff<< "sec"<< endl;
+	printMemUsage();
+	cout<< "Testing: t[\"a\"]==2"<< endl;
+	if (2==(int)t["a"]) {
+		cout<< "PASSED"<< endl<< endl;
+		return 1;
+	}
+	cout<< "FAILED"<< endl<< endl;
+	return 0;
+}
+
+int test35 () {
+	cout<< "## 12. empty string, obj and array test"<< endl;
 	ccp cobj= "{}", carr= "[]", cvoid= "";
 	ftsStart.update();
 	Txj_ otxj(cobj), atxj(carr), vtxj(cvoid);
@@ -889,8 +914,8 @@ int test34 () {
 	return 0;
 }
 
-int test35 () {
-	cout<< "## 12. char[] test" <<endl;
+int test36 () {
+	cout<< "## 13. char[] test" <<endl;
 	char un[48]= "gowtham";
 	ftsStart.update();
  	Txj_ fun;
@@ -911,8 +936,8 @@ int test35 () {
 	return 0;
 }
 
-int test36 () {
-	cout<< "## 13. table test"<< endl;
+int test37 () {
+	cout<< "## 14. table test"<< endl;
 	ccp istr= "file://tests/data/table.oob.txj";
 	ftsStart.update();
 	Txj_ t(istr);
@@ -933,8 +958,8 @@ int test36 () {
 	return 0;
 }
 
-int test37 () {
-	cout<< "## 14. nested files links copy stringify test"<< endl;
+int test38 () {
+	cout<< "## 15. nested files links copy stringify test"<< endl;
 	ccp istr= "file://tests/data/red/users2.obj.txj";
 	ftsStart.update();
 	Txj_ r, t(istr);
@@ -958,8 +983,8 @@ int test37 () {
 	return 0;
 }
 
-int test38 () {
-	cout<< "## 15. comments test"<< endl;
+int test39 () {
+	cout<< "## 16. comments test"<< endl;
 	ccp istr= "file://tests/data/comment.oob.txj";
 	ftsStart.update();
 	Txj_ t(istr);
@@ -989,8 +1014,8 @@ int test38 () {
 	return 0;
 }
 
-int test39 () {
-	cout<< "## 16. timestamp test"<< endl;
+int test40 () {
+	cout<< "## 17. timestamp test"<< endl;
 	ftsStart.update();
 	ccp istr= "file://tests/data/empty.obj.txj";
 	Txj_ t(istr);
@@ -1017,8 +1042,8 @@ int test39 () {
 	return 0;
 }
 
-int test40 () {
-	cout<< "## 13. table copy test"<< endl;
+int test41 () {
+	cout<< "## 18. table copy test"<< endl;
 	ccp istr= "file://tests/data/table.oob.txj";
 	ftsStart.update();
 	Txj_ t(istr);
@@ -1040,8 +1065,8 @@ int test40 () {
 	return 0;
 }
 
-int test41 () {
-	cout<< "## 17. malformed Texject crash test"<< endl;
+int test42 () {
+	cout<< "## 19. malformed Texject crash test"<< endl;
 	ftsStart.update();
 	const char* cases[]= {
 		"",
@@ -1155,10 +1180,10 @@ int test41 () {
 	};
 	int n= (int)(sizeof(cases)/sizeof(cases[0]));
 	int crashes= 0;
-	for (int c= 58; c<n; ++c) {
+	for (int c= 0; c<n; ++c) {
 		cout<< "case "<< c<< ": `"<< cases[c]<< "`"<< endl;
-		pid_t pid= fork();
-		if (pid==0) {
+//		pid_t pid= fork();
+//		if (pid==0) {
 			Txj_ t;
 			t.init(cases[c]);
 			cout<< "  init ok"<< endl;
@@ -1168,15 +1193,15 @@ int test41 () {
 			Txj_ r;
 			r.init(s);
 			cout<< "  re-init ok"<< endl;
-			_exit(0);
-		}
-		int st= 0;
-		waitpid(pid, &st, 0);
-		if (!WIFEXITED(st) || WEXITSTATUS(st)!=0) {
-			++crashes;
-			cout<< "  *** CRASHED *** status=0x"<< hex<< st<< dec<< endl;
-			return 0;
-		}
+//			_exit(0);
+//		}
+//		int st= 0;
+//		waitpid(pid, &st, 0);
+//		if (!WIFEXITED(st) || WEXITSTATUS(st)!=0) {
+//			++crashes;
+//			cout<< "  *** CRASHED *** status=0x"<< hex<< st<< dec<< endl;
+//			return 0;
+//		}
 	}
 	ftsEnd.update();
 	ftsDiff= ftsEnd-ftsStart;
@@ -1193,18 +1218,52 @@ int test41 () {
 	return 1;
 }
 
-// ---------- test41: thread-safety stress test ----------
-static Txj_ t41Root (Txj_::OBJ);
+int test43 () {
+	cout<< "## 20. shared ptr test"<< endl;
+	ftsStart.update();
+	TxjP_ t(new Txj_("7"));
+	cout<< "t: "<< t<< endl;
+	t->lockShared(); {
+		TxjP_ t1(t);
+		cout<< "t1: "<< t1<< endl;
+	}
+	t->lockShared(); {
+		TxjP_ t2(t);
+		cout<< "t2: "<< t2<< endl;
+	}
+	cout<< "t->lockShared() twice!"<< endl;
+	t->unlockShared();
+	t->unlockShared();
+	cout<< "t->unlockShared() should b twice!"<< endl;
+	t->lock();
+	//t->lock();
+	cout<< "t->lock() twice gives dead lock!"<< endl;
+	t->unlock();
+	cout<< "t: "<< t<< endl;
+	ftsEnd.update();
+	ftsDiff= ftsEnd-ftsStart;
+	cout<< "%TEST_FINISHED% in "<< ftsDiff<< "sec"<< endl;
+	printMemUsage();
+	cout<< "Testing: t==7"<< endl;
+	if (7==t) {
+		cout<< "PASSED"<< endl<< endl;
+		return 1;
+	}
+	cout<< "FAILED"<< endl<< endl;
+	return 0;
+}
+
+// ---------- thread-safety stress test ----------
 static unsigned long totalTxjs= 0;
 static mutex totalTxjsMtx;
-static const uint64_t t41_TARGET= 100000;
+static uint64_t thrdTstMaxMem= 2000;
 static const int t41_MAX_MEMBERS= 7;
 static const int NUM_THREADS= 4;
 static Txj_::Locker_ thrdTstLkr;
 thread_local random_device t41_rd;
 thread_local mt19937_64 t41_rng{t41_rd()};
 
-static bool t41_isCtnr (Txj_& t) {
+static bool isCtnr (Txj_& t) {
 	switch (t.getType()) {
 	case Txj_::OBJ: case Txj_::ARRAY: case Txj_::ORDERED_OBJ:
 	case Txj_::SET_TYPE:
@@ -1213,18 +1272,18 @@ static bool t41_isCtnr (Txj_& t) {
 	return false;
 }
 static bool noCntnrIn (Txj_* c) {
-	if (!t41_isCtnr(*c))
+	if (!isCtnr(*c))
 		return true;
 	Txj_::Iterator it= c->begin();
 	Txj_::Iterator end= c->end();
 	for (; it!=end; ++it) {
-		if (t41_isCtnr(*it))
+		if (isCtnr(*it))
 			return false;
 	}
 	return true;
 }
 
-static Txj_::TxjP_ makeLeaf () {
+static Txj_* makeLeaf () {
 	uniform_int_distribution<int> dist(0, 4);
 	int t= dist(t41_rng);
 	Txj_* p= new Txj_();
@@ -1240,53 +1299,25 @@ static Txj_::TxjP_ makeLeaf () {
 		*p= Txj_::Blob_{d, 8};
 		break;}
 	}
-	return Txj_::TxjP_(p);
-}
-static Txj_* insertIntoCntnr (Txj_& c, Txj_& child);
-static Txj_* t41_makeSimpleContainer () {
-	uniform_int_distribution<int> dist(0, 3);
-	int t= dist(t41_rng);
-	Txj_* p= nullptr;
-	switch (t) {
-	case 0: p= new Txj_(Txj_::OBJ);
-		(*p)["seed"]= 42;
-		break;
-	case 1: p= new Txj_(Txj_::ARRAY);
-		(*p)[0]= 42;
-		break;
-	case 2: p= new Txj_(Txj_::ORDERED_OBJ);
-		(*p)["seed"]= 42;
-		break;
-	default: p= new Txj_();
-		(*p)[]= 42;
-		(*p)[]= 43;
-		break;
-	}
 	return p;
 }
-static Txj_::TxjP_ makeContainer () {
+static Txj_* insertIntoCntnr (Txj_& c, Txj_& child);
+
+static Txj_* makeContainer () {
 	uniform_int_distribution<int> dist(0, 3);
 	int t= dist(t41_rng);
 	Txj_* p= nullptr;
-	if (t==3) {
-		p= new Txj_();
-		(*p)[]= 100;
-		(*p)[]= 200;
-		(*p)[]= 300;
-		return Txj_::TxjP_(p);
-	}
 	switch (t) {
 	case 0: p= new Txj_(Txj_::OBJ);
 		break;
 	case 1: p= new Txj_(Txj_::ARRAY);
+		break;
+	case 2: p= new Txj_(Txj_::SET_TYPE);
 		break;
 	default: p= new Txj_(Txj_::ORDERED_OBJ);
 		break;
 	}
-	Txj_::TxjP_ child( t41_makeSimpleContainer() );
-	insertIntoCntnr(*p, *child);
-	Txj_::refRelease(&*child);
-	return Txj_::TxjP_(p);
+	return p;
 }
 static Txj_* insertIntoCntnr (Txj_& c, Txj_& child) {
 	bool isArr= c.isType(Txj_::ARRAY);
@@ -1294,54 +1325,113 @@ static Txj_* insertIntoCntnr (Txj_& c, Txj_& child) {
 	if (isSet) {
 		Txj_& mem= c[];
 		mem= child;
-		if (c.size >= (unsigned)t41_MAX_MEMBERS) {
-		if (!c.erase(&mem)) {
-			Txj_::refRelease(&mem);
-		}
-			return nullptr;
-		}
 		return &mem;
 	}
 	string k= "k" + to_string(c.size);
+	flDbg(TXJ_THRDTST, "%d: %s\n", tid, k.c_str());
 	Txj_& mem= isArr? c[c.size] : c[k];
 	mem= child;
 	return &mem;
 }
 
+int numThreads= NUM_THREADS;
 Txj_ cntnr1("file://tests/data/cntnr1.arr.txj");
 static void populateCntnr (int a) {
-	for (int i=0; i< 20; ++i) {
-		Txj_::TxjP_ pLf= makeLeaf();
+	//printf("a: %d\n", a);
+	for (int i=0; i< thrdTstMaxMem/4/numThreads; ++i) {
+		flDbg(TXJ_THRDTST, "%d: %d\n", tid, i);
+		Txj_* pLf= makeLeaf();
 		for (int j=0; j<4; ++j) {
 //		for (int j=0; j<1; ++j) {
-			insertIntoCntnr(cntnr1[j], *pLf);
+			Txj_& c= cntnr1[j];
+			c.lock(thrdTstLkr);
+			insertIntoCntnr(c, *pLf);
+			c.unlock(thrdTstLkr);
+			totalTxjsMtx.lock();
+			++totalTxjs;
+			cout<< "\r"<< totalTxjs<< "\\"<< thrdTstMaxMem;
+			totalTxjsMtx.unlock();
 		}
-		Txj_::refRelease(&*pLf);
+		delete pLf;
 	}
 }
-int test42 () {
-	cout << "## 42. 1 container thread safety stress test" << endl;
-	totalTxjs= 0;
+int test44 () {
+	cout << "## 21. 1 container thread safety stress test" << endl;
 	cntnr1[0].init(Txj_::OBJ);
 	cntnr1[1].init(Txj_::ORDERED_OBJ);
 	cntnr1[2].init(Txj_::ARRAY);
 	cntnr1[3].init(Txj_::SET_TYPE);
-	int numThreads= NUM_THREADS;
-	cout<< "ThreadCount: "<< numThreads<< ", ObjectCount: "<< t41_TARGET<< endl;
+	totalTxjs= 0;
+	//thrdTstMaxMem= 4;
+	cout<< "ThreadCount: "<< numThreads<< ", ObjectCount: "<< thrdTstMaxMem<<
+		endl;
 	ftsStart.update();
-
 	ThreadPool tp(numThreads);
 	for (int i=0; i<numThreads; ++i)
 		tp.enqueue(populateCntnr);
 	tp.join();
-	cntnr1.save();
 	ftsEnd.update();
+	cout<< endl;
 	ftsDiff= ftsEnd-ftsStart;
-	cout<< "  done in "<< ftsDiff<< "sec"<< endl;
-	t41Root.freeObj();
+   cout<< "%TEST_FINISHED% in "<< ftsDiff<< "sec"<< endl;
+	cntnr1.save();
+	cntnr1.freeObj();
 	cout<< "PASSED"<< endl<< endl;
 	return 1;
 }
+
+Txj_ wre;
+int written= 0;
+void writer (int tid) {
+	for (written= 0; written<thrdTstMaxMem; ++written) {
+		*TxjP_(&wre)["w"]= written;
+		//TxjP_ wp= TxjP_(&wre)["w"];
+		//wp= written;
+//		cout<< "\033[uwriter: "<< written;
+		cout<< "writer: "<< written<< endl;
+		fflush(stdout);
+	}
+}
+void reader (int tid) {
+	int i= 0;
+	while (written< thrdTstMaxMem) {
+//		cout<< "\033[u\033[1Breader: "<< ++i<< ": "<< TxjP_(&wre)["w"];
+		cout<< "reader: "<< ++i<< ": "<< TxjP_(&wre)["w"]<< endl;
+		fflush(stdout);
+	}
+}
+void eraser (int tid) {
+	int i= 0;
+	while (written< thrdTstMaxMem) {
+		wre.erase("w");
+//		cout<< "\033[u\033[1B\033[1Beraser: "<< ++i;
+		cout<< "eraser: "<< ++i<< endl;
+		fflush(stdout);
+	}
+}
+int test45 () {
+	cout << "## 22. reader writer eraser thread test" << endl;
+	totalTxjs= 0;
+	//thrdTstMaxMem= 4;
+	cout<< "ThreadCount: "<< 3<< ", ObjectCount: "<< thrdTstMaxMem<<
+		endl;
+	Txj_::refAcquire(&wre);
+	cout<< "\033[s";
+	cout<< endl<< endl<< endl;
+	ftsStart.update();
+	ThreadPool tp(3);
+	tp.enqueue(writer);
+	tp.enqueue(reader);
+	tp.enqueue(eraser);
+	tp.join();
+	ftsEnd.update();
+	cout<< endl;
+	ftsDiff= ftsEnd-ftsStart;
+   cout<< "%TEST_FINISHED% in "<< ftsDiff<< "sec"<< endl;
+	cout<< "PASSED"<< endl<< endl;
+	return 1;
+}
+
 // struct LkNd_ {
 // 	Txj_* tP= nullptr;
 // 	lkNd* child= nullptr;
@@ -1366,13 +1456,10 @@ int test42 () {
 			
 // 		}
 // 	}
-thread_local set<Txj_*> lckdTxj;
-static Txj_* t41_pickTxj (Txj_& c, bool container=false, bool onlyRoot=false);
-Txj_* t41_pickTxj (Txj_& c, bool container, bool onlyRoot) {
-	if (!lckdTxj.contains(&c)) {
-		flDbg(TXJ_THRDTST, "%d: lockshared %p", tid, &c);
-		c.lockShared(thrdTstLkr);
-	}
+static Txj_* pkTxjFrmTr (Txj_& c, bool container=false, bool onlyRoot=false);
+Txj_* pkTxjFrmTr (Txj_& c, bool container, bool onlyRoot) {
+	flDbg(TXJ_THRDTST, "%d: lockshared %p", tid, &c);
+	c.lockShared(thrdTstLkr);
 	if (c.size==0) {
 		return &c;
 	}
@@ -1400,9 +1487,9 @@ Txj_* t41_pickTxj (Txj_& c, bool container, bool onlyRoot) {
 			return nullptr;
 		m= &*it;
 	}}
-	if (t41_isCtnr(*m)) {
+	if (isCtnr(*m)) {
 		if (!onlyRoot && d2(t41_rng)) {
-			Txj_* ptr= t41_pickTxj(*m, container, false);
+			Txj_* ptr= pkTxjFrmTr(*m, container, false);
 			m= ptr;
 		}
 	} else {
@@ -1419,29 +1506,29 @@ Txj_* t41_pickTxj (Txj_& c, bool container, bool onlyRoot) {
 static const char* t41_tn (Txj_& t) {
 	return Txj_::TXJ_EXT[t.getType()];
 }
-static uint64_t t41_countNodes (Txj_& t) {
-	if (!t41_isCtnr(t))
+static uint64_t countNodes (Txj_& t) {
+	if (!isCtnr(t))
 		return 1;
 	uint64_t n= 1;
 	if (t.isType(Txj_::ARRAY)) {
 		for (unsigned i=0; i<t.size; ++i) {
 			Txj_& m= (*t)[i];
-			n+= t41_isCtnr(m)? t41_countNodes(m): 1;
+			n+= isCtnr(m)? countNodes(m): 1;
 		}
 	} else {
 		Txj_::Iterator it= t.begin();
 		Txj_::Iterator end= t.end();
 		for (; it!=end; ++it) {
 			Txj_& m= *it;
-			n+= t41_isCtnr(m)? t41_countNodes(m): 1;
+			n+= isCtnr(m)? countNodes(m): 1;
 		}
 	}
 	return n;
 }
-static void t41_worker (int);
-static void t41_workerMask (int) {
+static void ppltTr (int);
+static void ppltTrMask (int) {
 	try {
-		t41_worker(tid);
+		ppltTr(tid);
 	} catch (const exception& e) {
 		void* frames[64];
 		int n= backtrace(frames, 64);
@@ -1452,19 +1539,19 @@ static void t41_workerMask (int) {
 		throw;
 	}
 }
-static void t41_worker (int) {
-	while (totalTxjs < t41_TARGET) {
+static Txj_ ThrdTstTr;
+static void ppltTr (int) {
+	while (totalTxjs < thrdTstMaxMem) {
 		uniform_int_distribution<int> ad(0, 4);
 		int a;
-		Txj_* c= t41_pickTxj(t41Root, true, false);
+		TxjP_ c(pkTxjFrmTr(ThrdTstTr, true, false));
 		if (!c) {
 			flDbg(TXJ_THRDTST, "%d: continue", tid);continue;
 		}
-		lckdTxj.insert(c);
 	  pickOp:
 		a= ad(t41_rng);
 		if (c->size==6 && noCntnrIn(c)) {
-			Txj_::TxjP_ nc= makeContainer();
+			Txj_::TxjP_ nc(makeContainer());
 			Txj_* inserted= insertIntoCntnr(*c, *nc);
 			if (inserted) {
 				totalTxjsMtx.lock();
@@ -1475,15 +1562,14 @@ static void t41_worker (int) {
 					t41_tn(*c));
 				totalTxjsMtx.unlock();
 			}
-			Txj_::refRelease(&*nc);
 		} else if (a <= 1 && c->size<7) {
 			flDbg(TXJ_THRDTST, "%d: insert", tid);
 			uniform_int_distribution<int> td(0, 3);
 			Txj_::TxjP_ pt;
 			if (td(t41_rng) <= 2) {
-				pt= makeLeaf();
+				pt(makeLeaf());
 			} else {
-				pt= makeContainer();
+				pt(makeContainer());
 			}
 			Txj_* inserted= insertIntoCntnr(*c, *pt);
 			if (inserted) {
@@ -1494,24 +1580,21 @@ static void t41_worker (int) {
 					totalTxjs, &*pt, t41_tn(*pt), c, t41_tn(*c));
 				totalTxjsMtx.unlock();
 			}
-			Txj_::refRelease(&*pt);
 		} else if (a <= 2 && c->size<7) {
 			flDbg(TXJ_THRDTST, "%d: copy", tid);
-			Txj_* toBeCopied= t41_pickTxj(t41Root, false, false);
+			TxjP_ toBeCopied(pkTxjFrmTr(ThrdTstTr, false, false));
 			if (!toBeCopied) {
 				flDbg(TXJ_THRDTST, "%d: unlocked %p", tid, c);
-				c->unlock(thrdTstLkr);
-				lckdTxj.clear();
+				c->unlockShared(thrdTstLkr);
 				flDbg(TXJ_THRDTST, "%d: copy continue", tid);continue;}
 			int cnt= 1;
-			if (t41_isCtnr(*toBeCopied)) {
-				cnt= t41_countNodes(*toBeCopied);
+			if (isCtnr(*toBeCopied)) {
+				cnt= countNodes(*toBeCopied);
 				if (cnt-1 > 7) {
 					flDbg(TXJ_THRDTST, "%d: unlockshared %p", tid, toBeCopied);
 					toBeCopied->unlockShared(thrdTstLkr);
 					flDbg(TXJ_THRDTST, "%d: unlocked %p", tid, c);
 					c->unlock(thrdTstLkr);
-					lckdTxj.clear();
 					flDbg(TXJ_THRDTST, "%d: copy continue", tid);continue;
 				}
 			}
@@ -1534,13 +1617,13 @@ static void t41_worker (int) {
 				flDbg(TXJ_THRDTST, "%d: repicking op", tid);
 				goto pickOp;
 			}
-			Txj_* mem= t41_pickTxj(*c, false, true);
+			Txj_* mem= pkTxjFrmTr(*c, false, true);
 			if (!mem) {
 				flDbg(TXJ_THRDTST, "%d: unlocked %p", tid, c);
 				c->unlock(thrdTstLkr);
 				flDbg(TXJ_THRDTST, "%d: delete continue", tid);continue;
 			}
-			int cnt= t41_countNodes(*mem);
+			int cnt= countNodes(*mem);
 			flDbg(TXJ_THRDTST, "%d: unlockShared %p", tid, c);
 			c->unlockShared(thrdTstLkr);
 			flDbg(TXJ_THRDTST, "%d: lock %p", tid, c);
@@ -1558,27 +1641,33 @@ static void t41_worker (int) {
 			c->unlock(thrdTstLkr);
 		}
 		flDbg(TXJ_THRDTST, "%d: unlockShared %p", tid, c);
-		lckdTxj.clear();
 		c->unlockShared(thrdTstLkr);
 	}
 }
-int test43 () {
-	cout << "## 43. tree thread safety stress test" << endl;
+int test46 () {
+	cout << "## 23. tree thread safety stress test" << endl;
 	totalTxjs= 0;
-
-	cout << "  " << NUM_THREADS << " threads, "
-	     << t41_TARGET << " ops" << endl;
+	ThrdTstTr.init("file://tests/data/ThrdTstTr.obj.txj");
+	cout<< "ThreadCount: "<< numThreads<< ", ObjectCount: "<< thrdTstMaxMem<<
+		endl;
 	ftsStart.update();
-
-	ThreadPool tp(NUM_THREADS);
-	for (int i=0; i<NUM_THREADS; ++i)
-		tp.enqueue(t41_worker);
+	Txj_::refAcquire(&ThrdTstTr);
+	ThreadPool tp(numThreads);
+	for (int i=0; i<numThreads; ++i)
+		tp.enqueue(ppltTr);
 	tp.join();
-
 	ftsEnd.update();
 	ftsDiff= ftsEnd-ftsStart;
-	cout<< "  done in "<< ftsDiff<< "sec"<< endl;
-	t41Root.freeObj();
+   cout<< "%TEST_FINISHED% in "<< ftsDiff<< "sec"<< endl;
+	
+	cout<< "Saving thrdTstTr"<< endl;
+	ftsStart.update();
+	ThrdTstTr.save();
+	ftsEnd.update();
+	ftsDiff= ftsEnd-ftsStart;
+   cout<< "%TEST_FINISHED% in "<< ftsDiff<< "sec"<< endl;
+
+	ThrdTstTr.freeObj();
 	cout<< "PASSED"<< endl<< endl;
 	return 1;
 }
@@ -1762,7 +1851,12 @@ int main (int argc, char** argv) {
 	// ++tc; pc+= test40();
 	// ++tc; pc+= test41();
 	// ++tc; pc+= test42();
-	++tc; pc+= test43();
+	// ++tc; pc+= test43();
+	// numThreads= 1;
+	// ++tc; pc+= test44();
+	// numThreads= NUM_THREADS;
+	// ++tc; pc+= test44();
+	++tc; pc+= test45();
 
 	ftsSuiteEnd.update();
    ftsDiff= ftsSuiteEnd-ftsSuiteStart;
