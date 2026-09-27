@@ -86,6 +86,7 @@ void Txj_::refErase (Txj_* p) {
 void Txj_::refRelease (Txj_* p) {
 	if (!p) return;
 //	p->lock();
+	flDbg(TXJ_THRDTST, "orphanMtx lock");
 	orphanMtx.lock();
 	FeaturedMember fm;
 	bool fmem= false;
@@ -3532,7 +3533,7 @@ void Txj_::insertInParent () {
 		return;
 	}
 	Txj_& p= *val.fptr;
-	flDbg(TXJ_THRDTST, "%p lock", p);
+	flDbg(TXJ_THRDTST, "%p lock", &p);
 	p.lock();
 	FeaturedMember fm= getFeaturedMember(FM_KEY);
 	delOrphan(fm);
@@ -3567,7 +3568,7 @@ void Txj_::insertInParent () {
 		adopt();
 		setType(UNDEFINED);
 	}
-	flDbg(TXJ_THRDTST, "%p unlock", p);
+	flDbg(TXJ_THRDTST, "%p unlock", &p);
 	p.unlock();
 }
 
@@ -3590,6 +3591,7 @@ Txj_& Txj_::operator = (Blob_ b) {
 // 	return (*this)= (ccp)s;
 // }
 Txj_& Txj_::operator = (const char* s) {
+	flDbg(TXJ_THRDTST, "%p lock", this);
 	lock();
 	insertInParent();
 	if (isQType(UPDATE)) {
@@ -3679,6 +3681,7 @@ Txj_& Txj_::operator = (const char* s) {
 		// insertFeaturedMember(fmWidth, FM_WIDTH);
 		val.str[size]= '\0';
 	}
+	flDbg(TXJ_THRDTST, "%p unlock", this);
 	unlock(); return *this;
 }
 
@@ -3688,6 +3691,7 @@ Txj_& Txj_::operator = (const string& s) {
 }
 
 Txj_& Txj_::operator = (const int& i) {
+	flDbg(TXJ_THRDTST, "%p lock", this);
 	lock();
 	insertInParent();
 	if(isQType(UPDATE)){
@@ -3697,11 +3701,13 @@ Txj_& Txj_::operator = (const int& i) {
 	freeObj(true);
 	setType(NUMBER);
 	val.number= i;
+	flDbg(TXJ_THRDTST, "%p unlock", this);
 	unlock();
 	return *this;
 }
 
 Txj_& Txj_::operator = (const Txj_& f) {
+	flDbg(TXJ_THRDTST, "%p lock", this);
 	lock();
 	insertInParent();
 	if(isQType(UPDATE)){
@@ -3711,14 +3717,18 @@ Txj_& Txj_::operator = (const Txj_& f) {
 	if (f.isType(UNDEFINED)) {
 		freeObj();
 		setType(UNDEFINED);
+		flDbg(TXJ_THRDTST, "%p unlock", this);
 		unlock(); return *this;
 	}
 	if (!((isType(OBJ) || isType(ORDERED_OBJ)) &&
 			(f.isType(OBJ) || f.isType(ORDERED_OBJ))))
 		freeObj(true);
+	flDbg(TXJ_THRDTST, "%p unlock", this);
 	unlock();
+	flDbg(TXJ_THRDTST, "%p lockShared", &f);
 	f.lockShared();
 	copy(f, COPY_ALL);
+	flDbg(TXJ_THRDTST, "%p unlockShared", &f);
 	f.unlockShared();
 	return *this;
 }
@@ -3726,9 +3736,11 @@ Txj_& Txj_::operator = (const Txj_& f) {
 // need to implement, segfaults during stringify but
 // can be used to hold pointers
 Txj_& Txj_::operator = (Txj_* f) {
+	flDbg(TXJ_THRDTST, "%p lock", this);
 	lock();
 	insertInParent();
 	if (this==f) {
+		flDbg(TXJ_THRDTST, "%p unlock", this);
 		unlock(); return *this;
 	}
 	if (isQType(UPDATE)) {
@@ -3738,6 +3750,7 @@ Txj_& Txj_::operator = (Txj_* f) {
 	freeObj(true);
 	setType(DLINK);
 	val.fptr= f;
+	flDbg(TXJ_THRDTST, "%p unlock", this);
 	unlock(); return *this;
 }
 
@@ -4506,6 +4519,7 @@ void Txj_::clearEFlag (E_FLAGS t) {
 }
 
 void Txj_::erase (const string& name) {
+	flDbg(TXJ_THRDTST, "%p lock", this);
 	lock();
 	if (isLink()) {
 		val.fptr->erase(name);
@@ -4515,6 +4529,7 @@ void Txj_::erase (const string& name) {
 		// dereferencing it below would be a use-after-free
 		ffmap::iterator it= val.pairs->find(ccpIfInPool(name));
 		if (it==val.pairs->end()) {
+			flDbg(TXJ_THRDTST, "%p unlock", this);
 			unlock();
 			return;
 		}
@@ -4531,12 +4546,14 @@ void Txj_::erase (const string& name) {
 		--size;
 		Txj_::delIfNoRef(tgt);
 	}
+	flDbg(TXJ_THRDTST, "%p unlock", this);
 	unlock();
 }
 
 void Txj_::erase (int index) {
 	Txj_* tgt;
 	if (isType(ARRAY)) {
+		flDbg(TXJ_THRDTST, "%p lock", this);
 		lock();
 		if (index<size && (tgt= (*val.array)[index])) {
 			(*val.array)[index]= nullptr;
@@ -4544,6 +4561,7 @@ void Txj_::erase (int index) {
 				--size;
 			}
 		}
+		flDbg(TXJ_THRDTST, "%p unlock", this);
 		unlock();
 	}
 	tgt->sentence();
@@ -4566,6 +4584,7 @@ uint Txj_::erase (uint start, uint end) {
 }
 
 bool Txj_::erase (Txj_* value) {
+	flDbg(TXJ_THRDTST, "%p lock", this);
 	lock();
 	if (isType(OBJ)||isType(ORDERED_OBJ)) {
 		ffmap::iterator i= val.pairs->begin();
@@ -4580,6 +4599,7 @@ bool Txj_::erase (Txj_* value) {
 				}
 				val.pairs->erase(i);
 				--size;
+				flDbg(TXJ_THRDTST, "%p unlock", this);
 				unlock();
 				value->sentence();
 				Txj_::refRelease(value);
@@ -4587,6 +4607,7 @@ bool Txj_::erase (Txj_* value) {
 			}
 			++i;
 		}
+		flDbg(TXJ_THRDTST, "%p unlock", this);
 		unlock();
 	} else if (isType(ARRAY)) {
 		int i= 0;
@@ -4594,6 +4615,7 @@ bool Txj_::erase (Txj_* value) {
 			if ((*val.array)[i]==value) {
 				Txj_::refRelease((*val.array)[i]);
 				(*val.array)[i]= NULL;
+				flDbg(TXJ_THRDTST, "%p unlock", this);
 				unlock();
 				value->sentence();
 				Txj_::refRelease(value);
@@ -4606,12 +4628,14 @@ bool Txj_::erase (Txj_* value) {
 		if (it!=val.setPtr->end()) {
 			val.setPtr->erase(it);
 			--size;
+			flDbg(TXJ_THRDTST, "%p unlock", this);
 			unlock();
 			value->sentence();
 			Txj_::refRelease(value);
 			return true;
 		}
 	}
+	flDbg(TXJ_THRDTST, "%p unlock", this);
 	unlock(); return false;
 }
 
@@ -5255,6 +5279,7 @@ int Txj_::save (
 	bool json, bool printComments, unsigned int indent,
 	TxjPrettyPrintPObj* pObj, bool printFilePath, bool save
 ) const {
+	flDbg(TXJ_THRDTST, "%p lockShared", this);
 	lockShared();string sOut;
 	if (json)
 		stringify(sOut, json);
@@ -5267,12 +5292,15 @@ int Txj_::save (
 			ofs<< sOut;
 			ofs.close();
 			setEFlag(FILE);
+			flDbg(TXJ_THRDTST, "%p unlockShared", this);
 			unlockShared();return sOut.length();
 		} else {
 			flWrn(TXJ_MAIN, "couldn't create %s", fn);
 		}
+		flDbg(TXJ_THRDTST, "%p unlockShared", this);
 		unlockShared();return -2;
 	}
+	flDbg(TXJ_THRDTST, "%p unlockShared", this);
 	unlockShared();return -1;
 }
 

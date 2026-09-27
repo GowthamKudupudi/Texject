@@ -52,7 +52,7 @@ ThreadPool* tpoolPtr= nullptr;
 
 int child_exit_status= 0;
 FF_LOG_TYPE fflAllowedType= (FF_LOG_TYPE)(FFL_DEBUG | FFL_INFO | FFL_ERR);
-unsigned int fflAllowedBlks= 9|TXJ_MAIN;//|TXJ_THRDTST;
+unsigned int fflAllowedBlks= 9|TXJ_MAIN|TXJ_THRDTST;
 FerryTimeStamp ftsStart;
 FerryTimeStamp ftsEnd;
 FerryTimeStamp ftsDiff;
@@ -1256,7 +1256,7 @@ int test43 () {
 // ---------- thread-safety stress test ----------
 static unsigned long totalTxjs= 0;
 static mutex totalTxjsMtx;
-static uint64_t thrdTstMaxMem= 100000;
+static uint64_t thrdTstMaxMem= 2000;
 static const int t41_MAX_MEMBERS= 7;
 static const int NUM_THREADS= 4;
 static Txj_::Locker_ thrdTstLkr;
