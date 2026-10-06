@@ -427,7 +427,7 @@ public:
 	 * @param t
 	 */
 	Txj_(OBJ_TYPE t);
-	void init (OBJ_TYPE t);	
+	void init (OBJ_TYPE t, bool noFree= false);	
 	
 	~Txj_();
 	/**
@@ -471,6 +471,9 @@ public:
 		}
 		template <typename T>
 		operator T () {
+			if (!p) {
+				T t= (T)NULL;
+				return t;}
 			return (T)(*p);
 		}
 		Txj_* get () const;
@@ -478,6 +481,11 @@ public:
 		Txj_* release ();
 		void reset (Txj_* p_= nullptr);
 	};
+	struct TxjRefReg {
+		mutex mtx;
+		map<Txj_*, unsigned> refs;
+	};
+	static TxjRefReg refReg;
 	static void refAcquire (Txj_* p);
 	static void refRelease (Txj_* p);
 	static void delIfNoRef (Txj_* p);
@@ -486,7 +494,7 @@ public:
 	static const FeaturedMemType m_FM_LAST= FM_PARENT;
 	static const char TXJ_EXT[16][4];
 	static const char OBJ_STR[16][15];
-	static inline std::map<std::string, uint8_t> STR_OBJ= {
+	static inline std::map<std::string, OBJ_TYPE> STR_OBJ= {
 		{"", UNDEFINED},
 		{"UNDEFINED", UNDEFINED},
 		{"str", STRING},
@@ -669,9 +677,12 @@ public:
 	Txj_& getMem (int index, bool acquireRef= false);
 	template <typename T>
 	Txj_& operator= (T* t) {
+		lock();
+		insertInParent();
 		freeObj ();
 		val.vptr= (uint8_t*)t;
 		setType(VPTR);
+		unlock();
 		return *this;
 	}
 	/**
@@ -757,7 +768,7 @@ private:
 		int indent, vector<int>& vClWidths) const;
 	//LinkNRef GetLinkString (TxjPObj* pObj);
 };
-static Txj_ nullTxj;
+extern Txj_ nullTxj;
 ostream& operator << (ostream& out, const Txj_& f);
 ostream& operator << (ostream& out, const Txj_::TxjP_& f);
 

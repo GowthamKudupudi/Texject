@@ -1,0 +1,8 @@
+vh: {
+	obj5: {
+		users: file://linksSample.ffjson,
+      things: {}
+	},
+	obj6: obj5
+},
+txoTest: file://testObj.txo|OBJECT

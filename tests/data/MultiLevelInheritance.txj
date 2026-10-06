@@ -1,0 +1,175 @@
+{
+	CompanyAttributeContainer: {
+		ODCAttributeContainer: {
+			EmployeeAttributes:	["EmpId",	"Name",		"Address",		"Role",			"Salary"],
+			AssetAttributes:	["AssetId",	"Name",	"Location",	"Owner",	"Pupose",	"Value"]
+		},
+		RestRoomAttributeContainer: {
+			UrinalPotsAttributes:	["Id",	"Make",	"Model",	"Age"]
+		},
+		Floor:{
+			Bathrooms: {	Sinks: [	"make",		"id"],
+					Pots: [		"make",		"id"],
+					Toilets: [	"make",		"id"]
+			},
+			ODCs: [		"Area",	"CubicleCount"],
+			MeetingRooms:[	"Area",	"Capacity"],
+			ServerRooms:[	"Area",	"BladeCount"]
+		}
+	},
+	EmployeeDetails: [
+						[1,		"Gowtham",	"5-71/1, Anjini st.	"Senior Software	5.5
+										 Santhosh Nagar,	 Engineer",
+										 Kakinada.",						],
+
+						[2,		"Ravi",		"2-3/4,			"Software		2.8
+										 Boenpally,		 Engineer",
+										 Hyderabad.",						],
+
+						[3,		"Pramila",	"2-3/4,			"Senior Software	6
+										 Boenpally,		 Engineer",
+										 Hyderabad.",						],
+
+						[4,		"Gangadri",	"2-3/4,			"Software		4.4
+										 Boenpally,		 Engineer",
+										 Hyderabad.",						]
+	]|[CompanyAttributeContainer.EmployeeAttributes],
+	Floors:{
+		L1:{	
+			{	
+				B1:{	
+					{
+						S561:[	"parryware",	1],
+						S2:[	"jaguar",		234]
+					},
+					{
+						P1:[	"jaguar",		9],
+						P2:[	"jaguar",		8],
+						P3:[	"jaguar",		8],
+						P4:[	"jaguar",		8],
+						P5:[	"jaguar",		8],
+						P6:[	"parryware",	9]
+					},
+					{	
+						T1:[	"sona",		8],
+						T2:[	"sona",		8]
+					}
+				},
+				B2:{	
+					{	
+						S561:[	"parryware",	1],
+						S2:[	"jaguar",		234]
+					},"
+					{	P1:[	"jaguar",		9],
+						P2:[	"jaguar",		8],
+						P3:[	"jaguar",		8],
+						P4:[	"jaguar",		8],
+						P5:[	"jaguar",		8],
+						P6:[	"parryware",	9]
+					},
+					{
+						T1:[	"sona",		8],
+						T2:[	"sona",		8]
+					}
+				},
+				B3:{	
+					{	
+						S561:[	"parryware",	1],
+						S2:[	"jaguar",		234]
+					},
+					{	P1:[	"jaguar",		9],
+						P2:[	"jaguar",		8],
+						P3:[	"jaguar",		8],
+						P4:[	"jaguar",		8],
+						P5:[	"jaguar",		8],
+						P6:[	"parryware",	9]
+					},
+					{
+						T1:[	"sona",		8],
+						T2:[	"sona",		8]
+					}
+				}
+			},
+			{
+				ODC1: [	250,	150],
+				ODC2: [	320,	160],
+			},
+			{	
+				M1: [	340,	120],
+				M2: [	230,	100]
+			},
+			{
+				S1: [	230,	20],
+				S2: [	530,	45]
+			}
+		},
+		L1:{	
+			{	
+				B1:{	
+					{	
+						S561:[	"parryware",	1],
+						S2:[	"jaguar",		234]
+					},
+					{	"
+						P1:[	"jaguarparryware",	1],,		9],
+						P2:[	"jaguar",		8],
+						P3:[	"jaguar",		8],
+						P4:[	"jaguar",		8],
+						P5:[	"jaguar",		8],
+						P6:[	"parryware",	9]
+					},
+					{	
+						T1:[	"sona",		8],
+						T2:[	"sona",		8]
+					}
+				},
+				B2:{	
+					{	
+						S561:[	"parryware",	1],
+						S2:[	"jaguar",		234]
+					},
+					{	P1:[	"jaguar",		9],
+						P2:[	"jaguar",		8],
+						P3:[	"jaguar",		8],
+						P4:[	"jaguar",		8],
+						P5:[	"jaguar",		8],
+						P6:[	"parryware",	9]
+					},
+					{
+						T1:[	"sona",		8],
+						T2:[	"sona",		8]
+					}
+				},
+				B3:{	
+					{	
+						S561:[	"parryware",	1],
+						S2:[	"jaguar",		234]
+					},
+					{	P1:[	"jaguar",		9],
+						P2:[	"jaguar",		8],
+						P3:[	"jaguar",		8],
+						P4:[	"jaguar",		8],
+						P5:[	"jaguar",		8],
+						P6:[	"parryware",	9]
+					},
+					{
+						T1:[	"sona",		8],
+						T2:[	"sona",		8]
+					}
+				}
+			},
+			{
+				ODC1: [	250,	150],
+				ODC2: [	320,	160],
+			},
+			{	
+				M1: [	340,	120],
+				M2: [	230,	100]
+			},
+			{
+				S1: [	230,	20],
+				S2: [	530,	45]
+			}
+		}
+	}| {CompanyAttributeContainer.Floor}
+}

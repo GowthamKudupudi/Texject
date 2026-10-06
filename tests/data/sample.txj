@@ -1,0 +1,81 @@
+{
+	animals: [
+		"cow",
+		"buffalo",
+		"ox"
+	],
+	birds: [
+		"parrot",
+		"pigeon",
+		"crow",
+		"macaw"
+	],
+	amphibians: {
+		frogs: [
+			"cheeky",
+			"creeky"
+		],
+		snakes: [
+			"naga",
+			"gaga"
+		],
+		genome: [
+			<FFESCSTR>a;ldkjfoea'"`jkjkljkltgmldsd][12348900-=`~!@#$%^&*()_+QWERTYUIOP{}|qwertyuiop[]\ASDFGHJKL:"asdfghjkl;'ZXCVBNM<>?zxcvbnm,./</FFESCSTR>,
+			<BINARY><FFESCSTR>a;ldkjfoea'"`jkjkljkltgmldsd][12348900-=`~!@#$%^&*()_+QWERTYUIOP{}|qwertyuiop[]\ASDFGHJKL:"asdfghjkl;'ZXCVBNM<>?zxcvbnm,./</FFESCSTR></BINARY>,
+			{
+				moreBinaryChildren: {
+					gene1: <BINARY>I am gene one</BINARY>,
+					gene2: <BINARY>I am gene two</BINARY>
+				}
+			}
+		]
+	},
+	
+	#donkeys: "very useful animals for dobis",
+	donkeys: 4,
+
+	monkeys: 500,
+	jackals: 6,
+	cows: 7,
+
+	animalCount: [
+		3,
+		500,
+		6,
+		7
+	],
+	countCategories:
+		["animal",	"TotalCount",	"MaleCount",	"FemaleCount",	"BabyCount",	"MotherCount"],
+	categoryCount:[
+		["Buffalo",	3,		5,		10,		15,		16],
+		["Monkeys",	500,		600,		800,		900,		800],
+		["Donkeys",	600,		700,		900,		1000,		10000]
+	],
+
+	#summary: "demonstrating a comment! how coolly it can be neglected",
+	summary: "
+				This is a sample experimental FFJSON data representation.
+		------------------------------------------------------------------------
+		This string can contain new lines, quotes, tabs n what not!
+		1.	"U don have to escape this god damn string!" U don have to use \n or \t!
+		2.	'file://sample.ffjson' will parse this file!
+		3.	If you have a reference to the same file in the FFJSON file, Thats the
+			end of the story :p I left it to server programmer to take care of the
+			loops. I have a neat plan to take care of loops but I will do It depending
+			on how much you love FFJSON!
+		4.	Let me add some more lines to see how this unescaped para graph looks.
+		5.	More protocols like file:// will be added as it progresses.
+		6.	Its ironic that I hated to write string parsing functions and have 
+			written the ultimate parser :)
+	",
+
+	example: file://example.json,
+	link: summary,
+	subjects: [	    "Maths",	"Physics",	"Telugu",	"Social"],
+	studentsMarks: [
+	                [   10,		20,		30,		40],
+			[   50,		60,		70,		80],
+			[   20,		30,		40,		50],
+			[   30,		40,		50,		60]
+	]|[subjects]
+}

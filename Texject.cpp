@@ -60,18 +60,12 @@ Txj_::Locker_ Txj_::lkr;
 map<Txj_*, Txj_::orphmap> Txj_::orphans;
 shared_mutex Txj_::orphanMtx;
 shared_mutex Txj_::sntncMtx;
+Txj_::TxjRefReg Txj_::refReg;
+Txj_ nullTxj(Txj_::NUL);
 
-struct TxjRefReg {
-	mutex mtx;
-	map<Txj_*, unsigned> refs;
-};
-TxjRefReg& txjRefReg () {
-	static TxjRefReg r;
-	return r;
-}
 void Txj_::refAcquire (Txj_* p) {
 	if (!p) return;
-	TxjRefReg& r= txjRefReg();
+	TxjRefReg& r= refReg;
 	unique_lock<mutex> lk(r.mtx);
 	unsigned& ref= r.refs[p];
 	++ref;
@@ -79,40 +73,38 @@ void Txj_::refAcquire (Txj_* p) {
 }
 void Txj_::refErase (Txj_* p) {
 	if (!p) return;
-	TxjRefReg& r= txjRefReg();
+	TxjRefReg& r= refReg;
 	unique_lock<mutex> lk(r.mtx);
 	r.refs.erase(p);
 }
 void Txj_::refRelease (Txj_* p) {
 	if (!p) return;
-//	p->lock();
-	flDbg(TXJ_THRDTST, "orphanMtx lock");
-	orphanMtx.lock();
 	FeaturedMember fm;
 	bool fmem= false;
-	if (!p->isType(NEW_MEMBER))
-		orphanMtx.unlock();
-	else {
+	if (p->isType(NEW_MEMBER)) {
+		flDbg(TXJ_THRDTST, "orphanMtx lock");
+		orphanMtx.lock();
 		fm= p->getFeaturedMember(FM_KEY);
 		fmem= true;
 	}
-	TxjRefReg& r= txjRefReg();
+	TxjRefReg& r= refReg;
 	unique_lock<mutex> lk(r.mtx);
 	auto it= r.refs.find(p);
 	if (it==r.refs.end()) {
+		lk.unlock();
 		if (p->inSentence()) {
 			p->adopt();
 			if (fmem) {
 				p->delOrphanNoLk(fm);
+				flDbg(TXJ_THRDTST, "orphanMtx unlock");
 				orphanMtx.unlock();
 			}
-//			p->unlock();
 			delete p;
 		} else {
 			if (fmem) {
+				flDbg(TXJ_THRDTST, "orphanMtx unlock");
 				orphanMtx.unlock();
 			}
-//			p->unlock();
 		}
 		return;
 	};
@@ -121,50 +113,53 @@ void Txj_::refRelease (Txj_* p) {
 	flDbg(TXJ_THRDTST, "%p refrelease count %d", p, ref);
 	if (ref) {
 		if (fmem) {
+			flDbg(TXJ_THRDTST, "orphanMtx unlock");
 			orphanMtx.unlock();
 		}
-//		p->unlock();
 		return;
 	}
 	r.refs.erase(it);
+	lk.unlock();
 	if (p->inSentence()) {
 		p->adopt();
 		if (fmem) {
 			p->delOrphanNoLk(fm);
+			flDbg(TXJ_THRDTST, "orphanMtx unlock");
 			orphanMtx.unlock();
 		}
-//		p->unlock();
 		delete p;
 	} else {
 		if (fmem) {
+			flDbg(TXJ_THRDTST, "orphanMtx unlock");
 			orphanMtx.unlock();
 		}
-//		p->unlock();
 	}
 }
 
 void Txj_::delIfNoRef (Txj_* p) {
 	if (!p) return;
-	orphanMtx.lock();
 	FeaturedMember fm;
 	bool fmem= false;
-	if (!p->isType(NEW_MEMBER))
-		orphanMtx.unlock();
-	else {
+	if (p->isType(NEW_MEMBER)) {
+		flDbg(TXJ_THRDTST, "orphanMtx lock");
+		orphanMtx.lock();
 		fm= p->getFeaturedMember(FM_KEY);
 		fmem= true;
 	}
-	TxjRefReg& r= txjRefReg();
+	TxjRefReg& r= refReg;
 	unique_lock<mutex> lk(r.mtx);
 	auto it= r.refs.find(p);
 	if (it==r.refs.end()) {
+		lk.unlock();
 		if (fmem) {
 			p->delOrphanNoLk(fm);
+			flDbg(TXJ_THRDTST, "orphanMtx unlock");
 			orphanMtx.unlock();
 		}
 		delete p;
 	} else {
 		if (fmem) {
+			flDbg(TXJ_THRDTST, "orphanMtx unlock");
 			orphanMtx.unlock();
 		}
 		p->sentence();
@@ -176,6 +171,7 @@ set<Txj_*>& Txj_::sentenced () {
 	return value;
 }
 void Txj_::sentence () {
+	if (this==&nullTxj) return;
 	sntncMtx.lock();
 	sentenced().insert(this);
 	sntncMtx.unlock();
@@ -282,9 +278,10 @@ Txj_::Txj_ (OBJ_TYPE t) {
 	sentence();
 	init(t);
 }
-void Txj_::init (OBJ_TYPE t) {
+void Txj_::init (OBJ_TYPE t, bool noFree) {
 	insertInParent();
-	freeObj();
+	if (!noFree)
+		freeObj();
 	FeaturedMember fmMapSequence;
 	switch (t) {
 	case NEW_MEMBER:
@@ -448,9 +445,7 @@ void Txj_::copy (const Txj_& orig, COPY_FLAGS cf, TxjPObj* pObj) {
 			iterSeq(itVecPtr, i, iMapSeqIndexer, objmap);
 		}
 		if (val.pairs->size()==0) {
-			delete val.pairs;
-			val.pairs= NULL;
-			setType(UNDEFINED);
+			freeObj();
 		};
 		break;
 	}
@@ -746,6 +741,7 @@ void Txj_::init (
 				ffmap::iterator prNew;
 				bool arrEnd= false; ffpo.name= arrInd.c_str();
 				Txj_* obj= new Txj_(txj, &i, nind, &ffpo);
+				obj->adopt();
 				if (i>=j) {
 					delete obj; if (isType(UNDEFINED))delete val.pairs;
 					flErr(TXJ_MAIN, "Error parsing Txj_ at %d\n", i);
@@ -952,7 +948,7 @@ void Txj_::init (
 						if (ifs.is_open()) {
 							string txjStr;
 							ifs.seekg(0, ios::end);
-							uint8_t t= UNDEFINED;
+							OBJ_TYPE t= UNDEFINED;
 							if (objCaster.length()>0) {
 								setEFlag(CASTFILE);
 								txjStr.reserve((int)ifs.tellg()+3);
@@ -983,6 +979,8 @@ void Txj_::init (
 							}}
 							
 							init(txjStr, NULL, 0, pObj);
+							if (isType(UNDEFINED))
+								init(t, true);
 						} else {
 							flWrn(TXJ_MAIN, "Couldn't open %s", path.c_str());
 							ifs.close();
@@ -1908,19 +1906,20 @@ void DeleteChildLinks(vector<Txj_*>* childLinks) {
 	}
 }
 void Txj_::delOrphans () {
+	flDbg(TXJ_THRDTST, "orphanMtx lock_shared");
 	orphanMtx.lock_shared();
 	map<Txj_*, orphmap>::iterator it= orphans.find(this);
+	flDbg(TXJ_THRDTST, "orphanMtx unlock_shared");
 	orphanMtx.unlock_shared();
 	if (it==orphans.end())
 		return;
 	orphmap& om= it->second;
 	orphmap::iterator iit= om.begin();
 	while (iit!=om.end()) {
-		delete iit->second;
+		Txj_* tp= iit->second; 
 		++iit;
+		delete tp;
 	}
-	lock_guard<shared_mutex> lk(orphanMtx);
-	orphans.erase(it);
 }
 void Txj_::destroyAllFeaturedMembers (bool bExemptQueries) {
 	uint32_t iFMCount= flags >> 28;
@@ -2340,7 +2339,7 @@ void Txj_::freeObj (bool bAssignment) {
 		ffmap::iterator i;
 		i= val.pairs->begin();
 		while (i!=val.pairs->end()) {
-			Txj_::refRelease(i->second);
+			Txj_::delIfNoRef(i->second);
 			++i;
 		}
 		delete val.pairs;
@@ -2349,7 +2348,7 @@ void Txj_::freeObj (bool bAssignment) {
 	case ARRAY: {
 		int i= val.array->size()-1;
 		while (i>=0) {
-			Txj_::refRelease((*val.array)[i]);
+			Txj_::delIfNoRef((*val.array)[i]);
 			--i;
 		}
 		delete val.array;
@@ -2358,7 +2357,7 @@ void Txj_::freeObj (bool bAssignment) {
 	case SET_TYPE: {
 		for (Txj_* fp : *val.setPtr) {
 			if (fp)
-				Txj_::refRelease(fp);
+				Txj_::delIfNoRef(fp);
 		}
 		delete val.setPtr;
 		delOrphans();
@@ -2457,6 +2456,7 @@ Txj_& Txj_::operator [] (void) {
 	flDbg(TXJ_THRDTST, "%p unlock", this);
 	unlock();
 	if (isType(SET_TYPE)) {
+		flDbg(TXJ_THRDTST, "orphanMtx lock");
 		orphanMtx.lock();
 		orphmap& om= orphans[this];
 		Key_ k;
@@ -2467,6 +2467,7 @@ Txj_& Txj_::operator [] (void) {
 		} else {
 			obj= ko;
 		}
+		flDbg(TXJ_THRDTST, "orphanMtx unlock");
 		orphanMtx.unlock();
 	}
 	return *obj;
@@ -2544,6 +2545,7 @@ Txj_& Txj_::getMem (ccp prop, bool acquireRef) {
 			}
 		}}
 	}
+	flDbg(TXJ_THRDTST, "orphanMtx lock");
 	orphanMtx.lock();
 	orphmap& om= orphans[this];
 	Key_ k;k.key= ccpFromPool(prop);
@@ -2557,6 +2559,7 @@ Txj_& Txj_::getMem (ccp prop, bool acquireRef) {
 		obj= ko;
 	}
 	if (acquireRef) refAcquire(obj);
+	flDbg(TXJ_THRDTST, "orphanMtx unlock");
 	orphanMtx.unlock();
 	flDbg(TXJ_THRDTST, "%p  unlock/Shared", this);
 	if (locked) unlock(); else unlockShared();
@@ -2605,6 +2608,7 @@ Txj_& Txj_::getMem (const int index, bool acquireRef) {
 			}
 		} break; }
 	}}
+	flDbg(TXJ_THRDTST, "orphanMtx lock");
 	orphanMtx.lock();
 	orphmap& om= orphans[this];
 	Key_ k;k.index= index;
@@ -2618,6 +2622,7 @@ Txj_& Txj_::getMem (const int index, bool acquireRef) {
 		obj= ko;
 	}
 	if (acquireRef) refAcquire(obj);
+	flDbg(TXJ_THRDTST, "orphanMtx unlock");
 	orphanMtx.unlock();
 	flDbg(TXJ_THRDTST, "%p  unlock/Shared", this);
 	if (locked) unlock(); else unlockShared();
@@ -3052,7 +3057,7 @@ void Txj_::prettyString (
 		while (1) {
 			uint32_t t= (i->second || i->second->isType(LINK)) ?
 				i->second->getType() : NUL;
-			bool isComment= i->first[0]=='#';
+			bool isComment= i->first && i->first[0]=='#';
 			bool printComment= (printComments) && isComment;
 			if (t==UNDEFINED || (isComment && !printComment)) {
 				goto prtyPrntIter;
@@ -3064,7 +3069,7 @@ void Txj_::prettyString (
 				i->second->setEFlag(B64ENCODE_CHILDREN);
 			ps.append(indent+1, '\t');
 			if (json) ps+= "\"";
-			ps+= i->first;
+			if (i->first) ps+= i->first;
 			lfpo.name= i->first;
 			if (json) ps+= "\"";
 			ps+= ": ";
@@ -3518,8 +3523,10 @@ Txj_::operator unsigned int () {
 }
 
 void Txj_::delOrphan (FeaturedMember& fm) {
+	flDbg(TXJ_THRDTST, "orphanMtx lock");
 	lock_guard<shared_mutex> lk(orphanMtx);
 	delOrphanNoLk(fm);
+	flDbg(TXJ_THRDTST, "orphanMtx unlock");
 }
 void Txj_::delOrphanNoLk (FeaturedMember& fm) {
 	orphmap& om= orphans[val.fptr];
@@ -3707,6 +3714,9 @@ Txj_& Txj_::operator = (const int& i) {
 }
 
 Txj_& Txj_::operator = (const Txj_& f) {
+	if (this == &f) {
+		return *this;
+	}
 	flDbg(TXJ_THRDTST, "%p lock", this);
 	lock();
 	insertInParent();

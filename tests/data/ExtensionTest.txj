@@ -1,0 +1,33 @@
+{
+	Subjects: [				"Maths",	"Physics"	],
+	Marks: [
+		[				20,		50		],
+		[				30,		60		]
+	]|[Subjects],
+	School: {
+		Class1: {
+			StudentsMarks: {
+				Gowtham: [	20,		50		],
+				Satish:	[	30,		60		]
+			}|{*:Subjects}
+		},
+		Class2: {
+			StudentsMarks: {
+				Sasi: [		40,		50		],
+				Siva: [		60,		70		]
+			}|{*:Subjects}
+		}
+	},
+	Classes: [
+		[
+			[			20,		50		],
+			[			30,		60		]
+		]|[Subjects],
+		[
+			[			20,		50		],
+			[			30,		60		]
+		]|[Subjects]
+	],
+	info: "Testing Extension feature",
+	Students: [	"Satya Gowtham Kudupudi",	"Satish Kumar Kottali",		"Sasidhar Gulipalli"]
+}
