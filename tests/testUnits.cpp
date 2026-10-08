@@ -1177,6 +1177,8 @@ int test42 () {
 		"{a: 1, b: 2} #trailing",
 		"{a: .b}",
 		"{a: .b, b: 1}",
+		"{:2}",
+		"{:}"
 	};
 	int n= (int)(sizeof(cases)/sizeof(cases[0]));
 	int crashes= 0;
@@ -1256,7 +1258,7 @@ int test43 () {
 // ---------- thread-safety stress test ----------
 static unsigned long totalTxjs= 0;
 static mutex totalTxjsMtx;
-static uint64_t thrdTstMaxMem= 2000;
+static uint64_t thrdTstMaxMem= 20000;
 static const int t41_MAX_MEMBERS= 7;
 static const int NUM_THREADS= 4;
 static Txj_::Locker_ thrdTstLkr;
@@ -1998,9 +2000,9 @@ int main (int argc, char** argv) {
 	// ++tc; pc+= test45();
 	// numThreads= 1;
 	// ++tc; pc+= test46();
-//	numThreads= NUM_THREADS;
-//	++tc; pc+= test46();
-	++tc; pc+= test47();
+	numThreads= NUM_THREADS;
+	++tc; pc+= test46();
+	// ++tc; pc+= test47();
 
 	ftsSuiteEnd.update();
    ftsDiff= ftsSuiteEnd-ftsSuiteStart;

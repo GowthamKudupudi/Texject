@@ -295,11 +295,11 @@ public:
 	static shared_mutex sntncMtx;
 	void sentence ();
 	void adopt ();
-	bool inSentence();
+	bool inSentence ();
 	void delOrphan (FeaturedMember& fm);
 	void delOrphanNoLk (FeaturedMember& fm);
 	void delOrphans ();
-	set<Txj_*>& sentenced ();
+	static set<Txj_*> sentenced;
 	struct TxjExt {
 		Txj_* base= NULL;
 	};
@@ -667,7 +667,7 @@ public:
 	Txj_& addLink (const Txj_& obj, string label);
 	Txj_& addLink (const string&& objPath, const string&& linkPath);
 
-	void insertInParent ();
+	void insertInParent (bool noFree= false);
 	
 	Txj_& operator [] (const char* prop);
 	Txj_& operator [] (const string& prop);
@@ -676,7 +676,7 @@ public:
 	Txj_& getMem (ccp prop, bool acquireRef= false);
 	Txj_& getMem (int index, bool acquireRef= false);
 	template <typename T>
-	Txj_& operator= (T* t) {
+	Txj_& operator = (T* t) {
 		lock();
 		insertInParent();
 		freeObj ();

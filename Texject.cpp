@@ -61,6 +61,7 @@ map<Txj_*, Txj_::orphmap> Txj_::orphans;
 shared_mutex Txj_::orphanMtx;
 shared_mutex Txj_::sntncMtx;
 Txj_::TxjRefReg Txj_::refReg;
+set<Txj_*> Txj_::sentenced;
 Txj_ nullTxj(Txj_::NUL);
 
 void Txj_::refAcquire (Txj_* p) {
@@ -166,27 +167,23 @@ void Txj_::delIfNoRef (Txj_* p) {
 	}
 }
 
-set<Txj_*>& Txj_::sentenced () {
-	static set<Txj_*> value;
-	return value;
-}
 void Txj_::sentence () {
 	if (this==&nullTxj) return;
 	sntncMtx.lock();
-	sentenced().insert(this);
+	sentenced.insert(this);
 	sntncMtx.unlock();
 }
 
 bool Txj_::inSentence () {
 	sntncMtx.lock_shared();
-	bool t= sentenced().contains(this);
+	bool t= sentenced.contains(this);
 	sntncMtx.unlock_shared();
 	return t;
 }
 
 void Txj_::adopt () {
 	sntncMtx.lock();
-	sentenced().erase(this);
+	sentenced.erase(this);
 	sntncMtx.unlock();
 }
 
@@ -707,6 +704,7 @@ inline bool Txj_::isInitializingChar(char c) {
 void Txj_::init (
 	const string& txj, int* ci, int indent, TxjPObj* pObj
 ) {
+	insertInParent();
 	if (!isType(UNDEFINED)) {
 		freeObj();
 	}
@@ -3079,8 +3077,10 @@ void Txj_::prettyString (
 			iterSeq(itVecPtr, i, iMapSeqIndexer, objmap);
 			if (i==objmap.end()) {
 				if (t==UNDEFINED) {
-					ps.pop_back();
-					ps.back()= '\n';
+					if (!ps.empty()) {
+						ps.pop_back();
+						ps.back()= '\n';
+					}
 				} else {
 					ps+= '\n';
 				}
@@ -3535,7 +3535,7 @@ void Txj_::delOrphanNoLk (FeaturedMember& fm) {
 	if (!om.size())
 		orphans.erase(val.fptr);
 }
-void Txj_::insertInParent () {
+void Txj_::insertInParent (bool noFree) {
 	if (!isType(NEW_MEMBER)) {
 		return;
 	}
@@ -3546,10 +3546,8 @@ void Txj_::insertInParent () {
 	delOrphan(fm);
 	switch (p.getType()) {
 	case SET_TYPE: if (p.val.setPtr->insert(this).second) {
-			++p.size;
-			setType(UNDEFINED);
-			adopt();
-		} break;
+		++p.size;
+	} break;
 	case OBJ:
 	case ORDERED_OBJ: {
 		pair<ffmap::iterator, bool> prNew= p.val.
@@ -3559,8 +3557,6 @@ void Txj_::insertInParent () {
 			fm.m_pvpsMapSequence->push_back(prNew.first);
 		}
 		++p.size;//should b increase only after getFeatruredMember
-		adopt();
-		setType(UNDEFINED);
 	} break;
 	case ARRAY: if (p.val.array->size()<=fm.index) {
 			for (int i=p.size; i<fm.index; ++i) {
@@ -3572,9 +3568,9 @@ void Txj_::insertInParent () {
 		} else {
 			(*p.val.array)[fm.index]= this;
 		}
-		adopt();
-		setType(UNDEFINED);
 	}
+	adopt();
+	if (!noFree) freeObj();
 	flDbg(TXJ_THRDTST, "%p unlock", &p);
 	p.unlock();
 }
@@ -3700,7 +3696,7 @@ Txj_& Txj_::operator = (const string& s) {
 Txj_& Txj_::operator = (const int& i) {
 	flDbg(TXJ_THRDTST, "%p lock", this);
 	lock();
-	insertInParent();
+	insertInParent(true);
 	if(isQType(UPDATE)){
 		FeaturedMember fm=getFeaturedMember(FM_UPDATE_TIMESTAMP);
 		fm.m_pTimeStamp->update();
@@ -3718,12 +3714,12 @@ Txj_& Txj_::operator = (const Txj_& f) {
 		return *this;
 	}
 	flDbg(TXJ_THRDTST, "%p lock", this);
-	lock();
-	insertInParent();
 	if(isQType(UPDATE)){
 		FeaturedMember fm=getFeaturedMember(FM_UPDATE_TIMESTAMP);
 		fm.m_pTimeStamp->update();
 	}
+	lock();
+	insertInParent(true);
 	if (f.isType(UNDEFINED)) {
 		freeObj();
 		setType(UNDEFINED);
@@ -3747,6 +3743,8 @@ Txj_& Txj_::operator = (const Txj_& f) {
 // can be used to hold pointers
 Txj_& Txj_::operator = (Txj_* f) {
 	flDbg(TXJ_THRDTST, "%p lock", this);
+	if (f->inSentence())
+		return *this;
 	lock();
 	insertInParent();
 	if (this==f) {
@@ -3964,13 +3962,15 @@ Txj_& Txj_::operator = (const double& d) {
 		FeaturedMember fm=getFeaturedMember(FM_UPDATE_TIMESTAMP);
 		fm.m_pTimeStamp->update();
 	}
-	freeObj(true);
+	lock();
+	insertInParent();
 	FeaturedMember cFM;
 	cFM.precision= 16;
 	setEFlag(PRECISION);
 	insertFeaturedMember(cFM, FM_PRECISION);
 	setType(NUMBER);
 	val.number= d;
+	unlock();
 	return *this;
 }
 
@@ -3979,13 +3979,15 @@ Txj_& Txj_::operator = (const float& f) {
 		FeaturedMember fm=getFeaturedMember(FM_UPDATE_TIMESTAMP);
 		fm.m_pTimeStamp->update();
 	}
-	freeObj(true);
+	lock();
+	insertInParent();
 	FeaturedMember cFM;
 	cFM.precision= 8;
 	setEFlag(PRECISION);
 	insertFeaturedMember(cFM, FM_PRECISION);
 	setType(NUMBER);
 	val.number= f;
+	unlock();
 	return *this;
 }
 
@@ -3994,9 +3996,11 @@ Txj_& Txj_::operator = (const long& l) {
 		FeaturedMember fm=getFeaturedMember(FM_UPDATE_TIMESTAMP);
 		fm.m_pTimeStamp->update();
 	}
-	freeObj(true);
+	lock();
+	insertInParent();
 	setType(NUMBER);
 	val.number= l;
+	unlock();
 	return *this;
 }
 
@@ -4005,9 +4009,11 @@ Txj_& Txj_::operator = (const short& s) {
 		FeaturedMember fm=getFeaturedMember(FM_UPDATE_TIMESTAMP);
 		fm.m_pTimeStamp->update();
 	}
-	freeObj(true);
+	lock();
+	insertInParent();
 	setType(NUMBER);
 	val.number= s;
+	unlock();
 	return *this;
 }
 
@@ -4016,9 +4022,11 @@ Txj_& Txj_::operator = (const unsigned int& i) {
 		FeaturedMember fm=getFeaturedMember(FM_UPDATE_TIMESTAMP);
 		fm.m_pTimeStamp->update();
 	}
-	freeObj(true);
+	lock();
+	insertInParent();
 	setType(NUMBER);
 	val.number= i;
+	unlock();
 	return *this;
 }
 
@@ -4027,9 +4035,11 @@ Txj_& Txj_::operator = (const bool& b) {
 		FeaturedMember fm=getFeaturedMember(FM_UPDATE_TIMESTAMP);
 		fm.m_pTimeStamp->update();
 	}
-	freeObj(true);
+	lock();
+	insertInParent();
 	setType(BOOL);
 	val.boolean= b;
+	unlock();
 	return *this;
 }
 void Txj_::trim () {
