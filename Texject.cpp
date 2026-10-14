@@ -398,6 +398,8 @@ void Txj_::copy (const Txj_& orig, COPY_FLAGS cf, TxjPObj* pObj) {
 						  || !fo->isType(UNDEFINED))) {
 				pair<ffmap::iterator, bool> prNew= val.
 					pairs->insert(pair<ccp, Txj_*>(i->first, fo));
+				if (prNew.second)
+					fo->adopt();
 				++size;
 				if (fm.m_pvpsMapSequence)
 					fm.m_pvpsMapSequence->push_back(prNew.first);
@@ -427,7 +429,9 @@ void Txj_::copy (const Txj_& orig, COPY_FLAGS cf, TxjPObj* pObj) {
 			string index= to_string(i);
 			pLObj.name= index.c_str();
 			if ((*orig.val.array)[i]!=NULL) {
-				val.array->push_back(new Txj_(*(*orig.val.array)[i]));
+				Txj_* newcopy= new Txj_(*(*orig.val.array)[i]);
+				newcopy->adopt();
+				val.array->push_back(newcopy);
 			} else {
 				val.array->push_back(nullptr);
 			}
@@ -465,9 +469,10 @@ void Txj_::copy (const Txj_& orig, COPY_FLAGS cf, TxjPObj* pObj) {
 		setType(origType);
 		for (Txj_* fp : *orig.val.setPtr) {
 			Txj_* newcopy= new Txj_(*fp);
-			if (val.setPtr->insert(newcopy).second)
+			if (val.setPtr->insert(newcopy).second) {
+				newcopy->adopt();
 				++size;
-			else
+			} else
 				delete newcopy;
 		}
 		break;
