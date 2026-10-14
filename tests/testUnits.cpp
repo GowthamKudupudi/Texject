@@ -1993,6 +1993,7 @@ int main (int argc, char** argv) {
 	// ++tc; pc+= test41();
 	// ++tc; pc+= test42();
 	// ++tc; pc+= test43();
+	// ++tc; pc+= test47();
 	// numThreads= 1;
 	// ++tc; pc+= test44();
 	// numThreads= NUM_THREADS;
@@ -2002,7 +2003,6 @@ int main (int argc, char** argv) {
 	// ++tc; pc+= test46();
 	numThreads= NUM_THREADS;
 	++tc; pc+= test46();
-	// ++tc; pc+= test47();
 
 	ftsSuiteEnd.update();
    ftsDiff= ftsSuiteEnd-ftsSuiteStart;

@@ -94,7 +94,9 @@ public:
 		STRING_INIT				= 1<<21, //STRING //FM
 		
 		FILE						= 1<<22, //FILE //FM Any
-		CASTFILE					= 1<<23
+		CASTFILE					= 1<<23,
+
+		REFREL               = 1<<24
 	};
 	
 	enum COPY_FLAGS : uint32_t {
@@ -296,8 +298,8 @@ public:
 	void sentence ();
 	void adopt ();
 	bool inSentence ();
-	void delOrphan (FeaturedMember& fm);
-	void delOrphanNoLk (FeaturedMember& fm);
+	bool delOrphan (FeaturedMember& fm);
+	bool delOrphanNoLk (FeaturedMember& fm);
 	void delOrphans ();
 	static set<Txj_*> sentenced;
 	struct TxjExt {
@@ -465,6 +467,12 @@ public:
 		template <typename T>
 		TxjP_ operator [] (T t) {
 			Txj_* ret= &p->getMem(t, true);
+			TxjP_ tp(ret);
+			refRelease(ret);
+			return tp;
+		}
+		TxjP_ operator [] (void) {
+			Txj_* ret= &p->getMem(true);
 			TxjP_ tp(ret);
 			refRelease(ret);
 			return tp;
@@ -675,6 +683,7 @@ public:
 	Txj_& operator [] (void);
 	Txj_& getMem (ccp prop, bool acquireRef= false);
 	Txj_& getMem (int index, bool acquireRef= false);
+	Txj_& getMem (bool acquireRef= false);
 	template <typename T>
 	Txj_& operator = (T* t) {
 		lock();
