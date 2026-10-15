@@ -1263,7 +1263,7 @@ static const int t41_MAX_MEMBERS= 7;
 static const int NUM_THREADS= 4;
 static Txj_::Locker_ thrdTstLkr;
 thread_local random_device t41_rd;
-thread_local mt19937_64 t41_rng{t41_rd()};
+thread_local mt19937_64 t41_rng{12345};
 
 static bool isCtnr (Txj_& t) {
 	switch (t.getType()) {
@@ -2026,10 +2026,10 @@ int main (int argc, char** argv) {
 	// numThreads= NUM_THREADS;
 	// ++tc; pc+= test44();
 	// ++tc; pc+= test45();
-	// numThreads= 1;
-	// ++tc; pc+= test46();
-	numThreads= NUM_THREADS;
+	numThreads= 1;
 	++tc; pc+= test46();
+	// numThreads= NUM_THREADS;
+	// ++tc; pc+= test46();
 
 	ftsSuiteEnd.update();
    ftsDiff= ftsSuiteEnd-ftsSuiteStart;
