@@ -675,7 +675,7 @@ public:
 	Txj_& addLink (const Txj_& obj, string label);
 	Txj_& addLink (const string&& objPath, const string&& linkPath);
 
-	void insertInParent (bool noFree= false);
+	void insertInParent ();
 	
 	Txj_& operator [] (const char* prop);
 	Txj_& operator [] (const string& prop);
@@ -684,13 +684,15 @@ public:
 	Txj_& getMem (ccp prop, bool acquireRef= false);
 	Txj_& getMem (int index, bool acquireRef= false);
 	Txj_& getMem (bool acquireRef= false);
+	void strNewMem ();
 	template <typename T>
 	Txj_& operator = (T* t) {
 		lock();
-		insertInParent();
+		strNewMem();
 		freeObj ();
 		val.vptr= (uint8_t*)t;
 		setType(VPTR);
+		insertInParent();
 		unlock();
 		return *this;
 	}
@@ -703,7 +705,7 @@ public:
 	template <typename T>
 	Txj_& operator= (const T& t) {
 		lock();
-		insertInParent();
+		strNewMem();
 		if(isQType(UPDATE)){
 			FeaturedMember fm= getFeaturedMember(FM_UPDATE_TIMESTAMP);
 			fm.m_pTimeStamp->update();
@@ -714,6 +716,7 @@ public:
 		val.vptr= (uint8_t*)malloc(size);
 		(T&)(*val.vptr)= t;
 		setType (BINARY);
+		insertInParent();
 		unlock();
 		return *this;
 	}

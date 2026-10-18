@@ -1355,7 +1355,7 @@ static Txj_* insertIntoCntnr (Txj_& c, Txj_& child) {
 }
 
 int numThreads= NUM_THREADS;
-Txj_ cntnr1("file://tests/data/cntnr1.arr.txj");
+Txj_ cntnr1;
 static void populateCntnr (int a) {
 	//printf("a: %d\n", a);
 	for (int i=0; i< thrdTstMaxMem/4/numThreads; ++i) {
@@ -1377,6 +1377,10 @@ static void populateCntnr (int a) {
 }
 int test44 () {
 	cout << "## 21. 1 container thread safety stress test" << endl;
+	string fileProto= "file://";
+	string cntnr1F= "tests/data/cntnr1.arr.txj";
+	{std::ofstream truncator(cntnr1F, std::ios::trunc);}
+	cntnr1.init(fileProto+cntnr1F);
 	cntnr1[0].init(Txj_::OBJ);
 	cntnr1[1].init(Txj_::ORDERED_OBJ);
 	cntnr1[2].init(Txj_::ARRAY);
@@ -2026,10 +2030,10 @@ int main (int argc, char** argv) {
 	// numThreads= NUM_THREADS;
 	// ++tc; pc+= test44();
 	// ++tc; pc+= test45();
-	numThreads= 1;
-	++tc; pc+= test46();
-	// numThreads= NUM_THREADS;
+	// numThreads= 1;
 	// ++tc; pc+= test46();
+	numThreads= NUM_THREADS;
+	++tc; pc+= test46();
 
 	ftsSuiteEnd.update();
    ftsDiff= ftsSuiteEnd-ftsSuiteStart;

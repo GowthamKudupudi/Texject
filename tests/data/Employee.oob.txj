@@ -36,4 +36,4 @@ physiology: {
 },
 
 #comment4: "Its a set! Duplicates are dropped!",
-sports: {"cricket","badminton","tt"}
+sports: {"badminton","cricket","tt"}
