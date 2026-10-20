@@ -454,8 +454,8 @@ public:
 		TxjP_ (const TxjP_& o);
 		TxjP_ (TxjP_&& o);
 		TxjP_& operator () (Txj_* p_);
-		TxjP_& operator= (const TxjP_& o);
-		TxjP_& operator= (TxjP_&& o);
+		TxjP_& operator = (const TxjP_& o);
+		TxjP_& operator = (TxjP_&& o);
 		// template <typename T>
 		// TxjP_& operator= (T& v) {
 		// 	(*p)= v;

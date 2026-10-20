@@ -178,16 +178,13 @@ Txj_::TxjP_& Txj_::TxjP_::operator () (Txj_* p_) {
 	if (p) refAcquire(p);
 	return *this;
 }
-Txj_::TxjP_& Txj_::TxjP_::operator= (const TxjP_& o) {
-	if (this!=&o && p!=o.p) {
-		Txj_* old= p;
-		p= o.p;
-		if (p) refAcquire(p);
-		if (old) refRelease(old);
+Txj_::TxjP_& Txj_::TxjP_::operator = (const TxjP_& o) {
+	if (p && o.p) {
+		(*p)= *o.p;
 	}
 	return *this;
 }
-Txj_::TxjP_& Txj_::TxjP_::operator= (TxjP_&& o) {
+Txj_::TxjP_& Txj_::TxjP_::operator = (TxjP_&& o) {
 	if (this!=&o) {
 		Txj_* old= p;
 		p= o.p;
@@ -1893,13 +1890,16 @@ void Txj_::delOrphans () {
 	orphanMtx.unlock_shared();
 	if (it==orphans.end())
 		return;
+	vector<Txj_*> v;
 	orphmap& om= it->second;
 	orphmap::iterator iit= om.begin();
 	while (iit!=om.end()) {
 		Txj_* tp= iit->second; 
 		++iit;
-		delete tp;
+		v.push_back(tp);
 	}
+	for (int i= 0; i<v.size(); ++i)
+		delIfNoRef(v[i]);
 }
 void Txj_::destroyAllFeaturedMembers (bool bExemptQueries) {
 	uint32_t iFMCount= flags >> 28;
@@ -3081,7 +3081,8 @@ void Txj_::prettyString (
 			iterSeq(itVecPtr, i, iMapSeqIndexer, objmap);
 			if (i==objmap.end()) {
 				if (t==UNDEFINED) {
-					if (!ps.empty()) {
+					if (ps.size()>=2 && ps.back()=='\n' &&
+						 ps[ps.size()-2]==',') {
 						ps.pop_back();
 						ps.back()= '\n';
 					}
@@ -3556,8 +3557,8 @@ void Txj_::insertInParent () {
 		++p.size;
 		} else {
 			adopt();
-			delete this;
 			p.unlock();
+			delIfNoRef(this);
 			return;
 		} break;
 	case OBJ:
@@ -4644,7 +4645,6 @@ bool Txj_::erase (Txj_* value) {
 				--size;
 				flDbg(TXJ_THRDTST, "%p unlock", this);
 				unlock();
-				value->sentence();
 				Txj_::delIfNoRef(value);
 				return true;
 			}
@@ -4656,11 +4656,9 @@ bool Txj_::erase (Txj_* value) {
 		int i= 0;
 		while (i<size) {
 			if ((*val.array)[i]==value) {
-				Txj_::delIfNoRef((*val.array)[i]);
 				(*val.array)[i]= NULL;
 				flDbg(TXJ_THRDTST, "%p unlock", this);
 				unlock();
-				value->sentence();
 				Txj_::delIfNoRef(value);
 				return true;
 			}
@@ -4668,12 +4666,11 @@ bool Txj_::erase (Txj_* value) {
 		}
 	} else if (isType(SET_TYPE)) {
 		ffset::iterator it= val.setPtr->find(value);
-		if (it!=val.setPtr->end()) {
+		if (it!=val.setPtr->end() && *it==value) {
 			val.setPtr->erase(it);
 			--size;
 			flDbg(TXJ_THRDTST, "%p unlock", this);
 			unlock();
-			value->sentence();
 			Txj_::delIfNoRef(value);
 			return true;
 		}
