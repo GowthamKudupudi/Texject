@@ -1257,8 +1257,9 @@ int test43 () {
 
 // ---------- thread-safety stress test ----------
 static unsigned long totalTxjs= 0;
+static unsigned long ptotalTxjs= 0;
 static mutex totalTxjsMtx;
-static uint64_t thrdTstMaxMem= 10000;
+static uint64_t thrdTstMaxMem= 1000;
 static const int t41_MAX_MEMBERS= 7;
 static const int NUM_THREADS= 4;
 static Txj_::Locker_ thrdTstLkr;
@@ -1635,16 +1636,11 @@ static uint64_t countNodes (Txj_& t) {
 		}
 	} else {
 		t.lockShared();
-		vector<Txj_*> kids;
 		Txj_::Iterator it= t.begin();
 		Txj_::Iterator end= t.end();
 		for (; it!=end; ++it)
-			kids.push_back(&*it);
+			n+= isCtnr(*it)? countNodes(*it): 1;
 		t.unlockShared();
-		for (int i= 0; i<kids.size(); ++i) {
-			Txj_& m= *kids[i];
-			n+= isCtnr(m)? countNodes(m): 1;
-		}
 	}
 	return n;
 }
@@ -1664,7 +1660,7 @@ static void ppltTrMask (int) {
 }
 static Txj_ ThrdTstTr;
 static void ppltTr (int) {
-	while (totalTxjs < thrdTstMaxMem/numThreads) {
+	while (totalTxjs < thrdTstMaxMem) {
 		uniform_int_distribution<int> ad(0, 6);
 		int a;
 		TxjP_ c(pkTxjFrmTr(ThrdTstTr, true, false));
@@ -1786,19 +1782,21 @@ static void ppltTr (int) {
 			int cnt= countNodes(*mem);
 			flDbg(TXJ_THRDTST, "%d: unlockShared %p", tid, mem);
 			t41_shUl(*mem);
-			if (cnt>7 || 2*cnt>totalTxjs-1) {
+			if (cnt>7 || ptotalTxjs>=totalTxjs-cnt) {
 				t41_exUl(*d);
 				flDbg(TXJ_THRDTST, "%d: unlocked %p", tid, d);
 				flDbg(TXJ_THRDTST, "%d: repicking op", tid);
 				continue;
 			}
-			printf(
-				"tid:%d deleting %d/%lu %p<%s> from %p<%s(%d)>\n", tid, cnt,
-				totalTxjs, mem, t41_tn(*mem), d, t41_tn(*d), d->size);
+			ccp memT= t41_tn(*mem);
 			bool erased= d->erase(mem);
 			if (erased) {
 				totalTxjsMtx.lock();
 				totalTxjs-= cnt;
+				ptotalTxjs= totalTxjs;
+				printf(
+					"tid:%d deleted %d:%lu %p<%s> from %p<%s(%d)>\n", tid, cnt,
+					totalTxjs, mem, memT, d, t41_tn(*d), d->size);
 				totalTxjsMtx.unlock();
 			}
 			flDbg(TXJ_THRDTST, "%d: unlock %p", tid, d);
@@ -1866,7 +1864,7 @@ TxjP_ pkTxjFrmTrNoLk (TxjP_& c, bool container, bool onlyRoot) {
 }
 static void ppltTrNoLk (int) {
 	TxjP_ root(&ThrdTstTr);
-	while (totalTxjs < thrdTstMaxMem/numThreads) {
+	while (totalTxjs < thrdTstMaxMem) {
 		uniform_int_distribution<int> ad(0, 6);
 		int a;
 		TxjP_ c= pkTxjFrmTrNoLk(root, true, false);
@@ -1949,17 +1947,20 @@ static void ppltTrNoLk (int) {
 				continue;
 			}
 			int cnt= countNodes(*mem);
-			if (cnt>7 || 2*cnt>totalTxjs-1) {
+			if (cnt>7 || ptotalTxjs>=totalTxjs-cnt) {
 				continue;
 			}
-			printf(
-				"tid:%d deleting %d/%lu %p<%s> from %p<%s(%d)>\n", tid, cnt,
-				totalTxjs, mem.get(), t41_tn(*mem), d.get(), t41_tn(*d), d->size);
-			bool erased= d->erase(mem.get());
+			Txj_* mp= mem.get();
+			ccp memT= t41_tn(*mem);
+			bool erased= d->erase(mp);
 			if (erased) {
 				totalTxjsMtx.lock();
 				totalTxjs-= cnt;
+				ptotalTxjs= totalTxjs;
 				totalTxjsMtx.unlock();
+				printf(
+					"tid:%d deleted %d:%lu %p<%s> from %p<%s(%d)>\n", tid, cnt,
+					totalTxjs, mp, memT, d.get(), t41_tn(*d), d->size);
 			}
 		}
 	}

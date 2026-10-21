@@ -38,6 +38,7 @@ struct FFPtrCmp {
 	bool operator() (const Txj_* a, const Txj_* b) const;
 };
 typedef const char* ccp;
+extern thread_local bool isDelDel;
 typedef set<Txj_*, FFPtrCmp> ffset;
 typedef map<ccp, Txj_*> ffmap;
 typedef vector<Txj_*> ffvec;
@@ -693,7 +694,8 @@ public:
 		val.vptr= (uint8_t*)t;
 		setType(VPTR);
 		insertInParent();
-		unlock();
+		if (!isDelDel)
+			unlock();
 		return *this;
 	}
 	/**
@@ -717,7 +719,8 @@ public:
 		(T&)(*val.vptr)= t;
 		setType (BINARY);
 		insertInParent();
-		unlock();
+		if (!isDelDel)
+			unlock();
 		return *this;
 	}
 	Txj_& operator = (const char* s);

@@ -68,6 +68,7 @@ Txj_ nullTxj(Txj_::NUL);
 thread_local Txj_::FeaturedMember tfm;
 thread_local Txj_* tprnt= nullptr;
 thread_local bool isNM= false;
+thread_local bool isDelDel= false;
 void Txj_::strNewMem () {
 	tprnt= val.fptr; tfm= m_uFM; isNM= isType(NEW_MEMBER);
 } 
@@ -78,7 +79,7 @@ void Txj_::refAcquire (Txj_* p) {
 	unique_lock<mutex> lk(r.mtx);
 	unsigned& ref= r.refs[p];
 	++ref;
-	flDbg(TXJ_THRDTST, "%p refacquire count %d", p, ref);
+//	flDbg(TXJ_THRDTST, "%p refacquire count %d", p, ref);
 }
 void Txj_::refErase (Txj_* p) {
 	if (!p) return;
@@ -94,7 +95,7 @@ void Txj_::refRelease (Txj_* p) {
 	auto it= r.refs.find(p);
 	unsigned& ref= it->second;
 	--ref;
-	flDbg(TXJ_THRDTST, "%p refrelease count %d", p, ref);
+//	flDbg(TXJ_THRDTST, "%p refrelease count %d", p, ref);
 	if (ref) {
 		r.mtx.unlock();
 		orphanMtx.unlock();
@@ -133,10 +134,12 @@ void Txj_::delIfNoRef (Txj_* p) {
 		orphanMtx.unlock();
 		p->setEFlag(REFREL);
 		delete p;
+		isDelDel= true;
 	} else {
 		p->sentence();
 		r.mtx.unlock();
 		orphanMtx.unlock();
+		isDelDel= false;
 	}
 }
 
@@ -305,12 +308,14 @@ Txj_::Txj_ (const string& ffjson, int* ci, int indent, Txj_::TxjPObj* pObj)
 void Txj_::copy (const Txj_& orig, COPY_FLAGS cf, TxjPObj* pObj) {
 	flDbg(TXJ_THRDTST, "%p  lock", this);
 	lock();
-	if (!(isType(OBJ) || isType(ORDERED_OBJ) || isType(ARRAY))) {
-		freeObj();
-	}
 	flDbg(TXJ_THRDTST, "%p  lockShared", &orig);
 	orig.lockShared();
 	OBJ_TYPE origType= orig.getType();
+	if (!(((isType(OBJ) || isType(ORDERED_OBJ)) &&
+				(origType==OBJ || origType==ORDERED_OBJ)) ||
+				(isType(ARRAY) && origType==ARRAY))) {
+		freeObj();
+	}
 	switch (origType) {
 	case NUMBER:
 		val.number= orig.val.number;
@@ -422,31 +427,38 @@ void Txj_::copy (const Txj_& orig, COPY_FLAGS cf, TxjPObj* pObj) {
 		break;
 	}
 	case ARRAY: {
-		int i= 0;
-		bool matter= false;
+		bool hadArray= (val.array!=nullptr);
+		bool copied= false;
 		TxjPObj pLObj;
 		pLObj.pObj= pObj;
 		pLObj.value= this;
-		if (val.array==nullptr) {
+		if (!hadArray) {
 			size= 0;
 			val.array= new ffvec();
 			setType(ARRAY);
 		}
-		while (i<orig.val.array->size()) {
-			Txj_* fo= NULL;
+		size_t n= orig.val.array->size();
+		if (val.array->size()< n) {
+			val.array->resize(n, nullptr);
+		}
+		for (size_t i= 0; i< n; ++i) {
+			Txj_* src= (*orig.val.array)[i];
+			if (src==nullptr) {
+				continue;
+			}
 			string index= to_string(i);
 			pLObj.name= index.c_str();
-			if ((*orig.val.array)[i]!=NULL) {
-				Txj_* newcopy= new Txj_(*(*orig.val.array)[i]);
-				newcopy->adopt();
-				val.array->push_back(newcopy);
+			Txj_* tgt= (*val.array)[i];
+			if (tgt!=nullptr) {
+				tgt->copy(*src, cf, &pLObj);
 			} else {
-				val.array->push_back(nullptr);
+				Txj_* newcopy= new Txj_(*src);
+				newcopy->adopt();
+				(*val.array)[i]= newcopy;
 			}
-			++size;
-			++i;
-			matter= true;
+			copied= true;
 		}
+		size= val.array->size();
 		if (orig.isEFlagSet(EXTENDED)) {
 			map<ccp, int>* m= new map<ccp, int>();
 			FeaturedMember cFM= orig.getFeaturedMember(FM_TABHEAD);
@@ -461,12 +473,15 @@ void Txj_::copy (const Txj_& orig, COPY_FLAGS cf, TxjPObj* pObj) {
 			if (mp->isType(ARRAY)) {
 				for (int l=0; l< size; ++l) {
 					Txj_* pT= (*val.array)[l];
+					if (pT==nullptr) {
+						continue;
+					}
 					pT->setEFlag(EXT_VIA_PARENT);
 					pT->insertFeaturedMember(cFM, FM_TABHEAD);
 				}
 			}
 		}
-		if (!matter) {
+		if (!copied && !hadArray) {
 			freeObj();
 		}
 		break;
@@ -1883,10 +1898,10 @@ void DeleteChildLinks(vector<Txj_*>* childLinks) {
 	}
 }
 void Txj_::delOrphans () {
-	flDbg(TXJ_THRDTST, "orphanMtx lock_shared");
+//	flDbg(TXJ_THRDTST, "orphanMtx lock_shared");
 	orphanMtx.lock_shared();
 	map<Txj_*, orphmap>::iterator it= orphans.find(this);
-	flDbg(TXJ_THRDTST, "orphanMtx unlock_shared");
+//	flDbg(TXJ_THRDTST, "orphanMtx unlock_shared");
 	orphanMtx.unlock_shared();
 	if (it==orphans.end())
 		return;
@@ -2299,7 +2314,7 @@ int Txj_::getIndent (const char* txj, int* ci, int indent) {
 }
 
 Txj_::~Txj_ () {
-	//lockAllIfExists();
+	lockAllIfExists();
 	if (isType(NEW_MEMBER)) {
 		if (!isEFlagSet(REFREL)) {
 			FeaturedMember fm= getFeaturedMember(FM_KEY);
@@ -2511,7 +2526,10 @@ Txj_& Txj_::getMem (ccp prop, bool acquireRef) {
 			}
 			flDbg(TXJ_THRDTST, "%p unlock/Shared", this);
 			insertInParent();
-			if (locked) unlock(); else unlockShared(); return *prf;
+			if (!isDelDel) {
+				if (locked) unlock(); else unlockShared();
+			}
+			return *prf;
 		}}
 		break;
 	case ARRAY: if (isEFlagSet(EXT_VIA_PARENT) || isEFlagSet(EXTENDED)) {
@@ -2536,13 +2554,17 @@ Txj_& Txj_::getMem (ccp prop, bool acquireRef) {
 					if (acquireRef) refAcquire(obj);
 					flDbg(TXJ_THRDTST, "%p unlock/Shared", this);
 					insertInParent();
-					if (locked) unlock(); else unlockShared();
+					if (!isDelDel) {
+						if (locked) unlock(); else unlockShared();
+					}
 					return *obj;
 				}
 			}
 		}}
 	}
 	insertInParent();
+	if (isDelDel)
+		return nullTxj;
 	flDbg(TXJ_THRDTST, "orphanMtx lock");
 	orphanMtx.lock();
 	orphmap& om= orphans[this];
@@ -2590,7 +2612,9 @@ Txj_& Txj_::getMem (const int index, bool acquireRef) {
 				if (acquireRef) refAcquire(obj);
 				flDbg(TXJ_THRDTST, "%p  unlock/Shared", this);
 				insertInParent();
-				if (locked) unlock(); else unlockShared();
+				if (!isDelDel) {
+					if (locked) unlock(); else unlockShared();
+				}
 				return *obj;
 			}
 		}
@@ -2604,12 +2628,17 @@ Txj_& Txj_::getMem (const int index, bool acquireRef) {
 					if (acquireRef) refAcquire(obj);
 					flDbg(TXJ_THRDTST, "%p unlock/Shared", this);
 					insertInParent();
-					if (locked) unlock(); else unlockShared(); return *obj;
+					if (!isDelDel) {
+						if (locked) unlock(); else unlockShared();
+					}
+					return *obj;
 				}
 			}
 		} break; }
 	}}
 	insertInParent();
+	if (isDelDel)
+		return nullTxj;
 	flDbg(TXJ_THRDTST, "orphanMtx lock");
 	orphanMtx.lock();
 	orphmap& om= orphans[this];
@@ -3541,17 +3570,20 @@ bool Txj_::delOrphanNoLk (FeaturedMember& fm) {
 		return false;
 	om.erase(k);
 	if (!om.size())
-		orphans.erase(val.fptr);
+		orphans.erase(tprnt);
 	return true;
 }
 void Txj_::insertInParent () {
 	if (!isNM) {
+		isDelDel= false;
 		return;
 	}
 	Txj_& p= *tprnt;
 	flDbg(TXJ_THRDTST, "%p lock", &p);
 	p.lock();
 	bool unmapped= delOrphan(tfm);
+	(void) unmapped;
+	Txj_* displaced= nullptr;
 	switch (p.getType()) {
 	case SET_TYPE: if (p.val.setPtr->insert(this).second) {
 		++p.size;
@@ -3565,6 +3597,12 @@ void Txj_::insertInParent () {
 	case ORDERED_OBJ: {
 		pair<ffmap::iterator, bool> prNew= p.val.
 			pairs->insert(pair<ccp, Txj_*>(tfm.key, this));
+		if (!prNew.second) {
+			adopt();
+			p.unlock();
+			delIfNoRef(this);
+			return;
+		}
 		FeaturedMember pfm= p.getFeaturedMember(FM_MAP_SEQUENCE);
 		if (pfm.m_pvpsMapSequence) {
 			pfm.m_pvpsMapSequence->push_back(prNew.first);
@@ -3572,21 +3610,31 @@ void Txj_::insertInParent () {
 		++p.size;//should b increase only after getFeatruredMember
 	} break;
 	case ARRAY: if (p.val.array->size()<=tfm.index) {
-			for (int i=p.size; i<tfm.index; ++i) {
+			for (size_t i=p.val.array->size(); i<tfm.index; ++i) {
 				p.val.array->push_back(nullptr);
-				++p.size;
 			}
 			p.val.array->push_back(this);
-			++p.size;
+			p.size= p.val.array->size();
 		} else {
+			displaced= (*p.val.array)[tfm.index];
 			(*p.val.array)[tfm.index]= this;
-		}
+		} break;
+	default:
+		adopt();
+		p.unlock();
+		delIfNoRef(this);
+		return;
 	}
 	adopt();
 	if (isType(NEW_MEMBER))
 		freeObj();
 	flDbg(TXJ_THRDTST, "%p unlock", &p);
 	p.unlock();
+	isDelDel= false;
+	if (displaced && displaced!=this) {
+		delIfNoRef(displaced);
+		isDelDel= false;
+	}
 }
 
 Txj_& Txj_::operator = (Blob_ b) {
@@ -3602,8 +3650,11 @@ Txj_& Txj_::operator = (Blob_ b) {
 	size= b.s;
 	val.vptr= b.p;
 	insertInParent();
-	flDbg(TXJ_THRDTST, "%p unlock", this);
-	unlock();return *this;
+	if (!isDelDel) {
+		flDbg(TXJ_THRDTST, "%p unlock", this);
+		unlock();
+	}
+	return *this;
 }
 // Txj_& Txj_::operator = (char* s) {
 // 	return (*this)= (ccp)s;
@@ -3700,8 +3751,11 @@ Txj_& Txj_::operator = (const char* s) {
 		val.str[size]= '\0';
 	}
 	insertInParent();
-	flDbg(TXJ_THRDTST, "%p unlock", this);
-	unlock(); return *this;
+	if (!isDelDel) {
+		flDbg(TXJ_THRDTST, "%p unlock", this);
+		unlock();
+	}
+	return *this;
 }
 
 Txj_& Txj_::operator = (const string& s) {
@@ -3721,8 +3775,10 @@ Txj_& Txj_::operator = (const int& i) {
 	setType(NUMBER);
 	val.number= i;
 	insertInParent();
-	flDbg(TXJ_THRDTST, "%p unlock", this);
-	unlock();
+	if (!isDelDel) {
+		flDbg(TXJ_THRDTST, "%p unlock", this);
+		unlock();
+	}
 	return *this;
 }
 
@@ -3741,11 +3797,15 @@ Txj_& Txj_::operator = (const Txj_& f) {
 		freeObj();
 		setType(UNDEFINED);
 		insertInParent();
-		flDbg(TXJ_THRDTST, "%p unlock", this);
-		unlock(); return *this;
+		if (!isDelDel) {
+			flDbg(TXJ_THRDTST, "%p unlock", this);
+			unlock();
+		}
+		return *this;
 	}
-	if (!((isType(OBJ) || isType(ORDERED_OBJ)) &&
-			(f.isType(OBJ) || f.isType(ORDERED_OBJ))))
+	if (!(((isType(OBJ) || isType(ORDERED_OBJ)) &&
+			(f.isType(OBJ) || f.isType(ORDERED_OBJ))) ||
+			(isType(ARRAY) && f.isType(ARRAY))))
 		freeObj(true);
 	flDbg(TXJ_THRDTST, "%p unlock", this);
 	unlock();
@@ -3768,8 +3828,11 @@ Txj_& Txj_::operator = (Txj_* f) {
 	strNewMem();
 	if (this==f) {
 		insertInParent();
-		flDbg(TXJ_THRDTST, "%p unlock", this);
-		unlock(); return *this;
+		if (!isDelDel) {
+			flDbg(TXJ_THRDTST, "%p unlock", this);
+			unlock();
+		}
+		return *this;
 	}
 	if (isQType(UPDATE)) {
 		FeaturedMember fm= getFeaturedMember(FM_UPDATE_TIMESTAMP);
@@ -3779,8 +3842,11 @@ Txj_& Txj_::operator = (Txj_* f) {
 	setType(DLINK);
 	val.fptr= f;
 	insertInParent();
-	flDbg(TXJ_THRDTST, "%p unlock", this);
-	unlock(); return *this;
+	if (!isDelDel) {
+		flDbg(TXJ_THRDTST, "%p unlock", this);
+		unlock();
+	}
+	return *this;
 }
 
 shared_mutex& Txj_::Locker_::getMtxMapMtx (const Txj_* t) {
@@ -3985,6 +4051,7 @@ Txj_& Txj_::operator = (const double& d) {
 	}
 	lock();
 	strNewMem();
+	freeObj(true);
 	FeaturedMember cFM;
 	cFM.precision= 16;
 	setEFlag(PRECISION);
@@ -3992,7 +4059,8 @@ Txj_& Txj_::operator = (const double& d) {
 	setType(NUMBER);
 	val.number= d;
 	insertInParent();
-	unlock();
+	if (!isDelDel)
+		unlock();
 	return *this;
 }
 
@@ -4003,6 +4071,7 @@ Txj_& Txj_::operator = (const float& f) {
 	}
 	lock();
 	strNewMem();
+	freeObj(true);
 	FeaturedMember cFM;
 	cFM.precision= 8;
 	setEFlag(PRECISION);
@@ -4010,7 +4079,8 @@ Txj_& Txj_::operator = (const float& f) {
 	setType(NUMBER);
 	val.number= f;
 	insertInParent();
-	unlock();
+	if (!isDelDel)
+		unlock();
 	return *this;
 }
 
@@ -4021,10 +4091,12 @@ Txj_& Txj_::operator = (const long& l) {
 	}
 	lock();
 	strNewMem();
+	freeObj(true);
 	setType(NUMBER);
 	val.number= l;
 	insertInParent();
-	unlock();
+	if (!isDelDel)
+		unlock();
 	return *this;
 }
 
@@ -4035,10 +4107,12 @@ Txj_& Txj_::operator = (const short& s) {
 	}
 	lock();
 	strNewMem();
+	freeObj(true);
 	setType(NUMBER);
 	val.number= s;
 	insertInParent();
-	unlock();
+	if (!isDelDel)
+		unlock();
 	return *this;
 }
 
@@ -4049,10 +4123,12 @@ Txj_& Txj_::operator = (const unsigned int& i) {
 	}
 	lock();
 	strNewMem();
+	freeObj(true);
 	setType(NUMBER);
 	val.number= i;
 	insertInParent();
-	unlock();
+	if (!isDelDel)
+		unlock();
 	return *this;
 }
 
@@ -4063,10 +4139,12 @@ Txj_& Txj_::operator = (const bool& b) {
 	}
 	lock();
 	strNewMem();
+	freeObj(true);
 	setType(BOOL);
 	val.boolean= b;
 	insertInParent();
-	unlock();
+	if (!isDelDel)
+		unlock();
 	return *this;
 }
 void Txj_::trim () {
@@ -4650,8 +4728,6 @@ bool Txj_::erase (Txj_* value) {
 			}
 			++i;
 		}
-		flDbg(TXJ_THRDTST, "%p unlock", this);
-		unlock();
 	} else if (isType(ARRAY)) {
 		int i= 0;
 		while (i<size) {
