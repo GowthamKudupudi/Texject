@@ -38,6 +38,7 @@ struct FFPtrCmp {
 	bool operator() (const Txj_* a, const Txj_* b) const;
 };
 typedef const char* ccp;
+extern thread_local bool isDelDel;
 typedef set<Txj_*, FFPtrCmp> ffset;
 typedef map<ccp, Txj_*> ffmap;
 typedef vector<Txj_*> ffvec;
@@ -94,7 +95,9 @@ public:
 		STRING_INIT				= 1<<21, //STRING //FM
 		
 		FILE						= 1<<22, //FILE //FM Any
-		CASTFILE					= 1<<23
+		CASTFILE					= 1<<23,
+
+		REFREL               = 1<<24
 	};
 	
 	enum COPY_FLAGS : uint32_t {
@@ -295,11 +298,11 @@ public:
 	static shared_mutex sntncMtx;
 	void sentence ();
 	void adopt ();
-	bool inSentence();
-	void delOrphan (FeaturedMember& fm);
-	void delOrphanNoLk (FeaturedMember& fm);
+	bool inSentence ();
+	bool delOrphan (FeaturedMember& fm);
+	bool delOrphanNoLk (FeaturedMember& fm);
 	void delOrphans ();
-	set<Txj_*>& sentenced ();
+	static set<Txj_*> sentenced;
 	struct TxjExt {
 		Txj_* base= NULL;
 	};
@@ -452,8 +455,8 @@ public:
 		TxjP_ (const TxjP_& o);
 		TxjP_ (TxjP_&& o);
 		TxjP_& operator () (Txj_* p_);
-		TxjP_& operator= (const TxjP_& o);
-		TxjP_& operator= (TxjP_&& o);
+		TxjP_& operator = (const TxjP_& o);
+		TxjP_& operator = (TxjP_&& o);
 		// template <typename T>
 		// TxjP_& operator= (T& v) {
 		// 	(*p)= v;
@@ -465,6 +468,12 @@ public:
 		template <typename T>
 		TxjP_ operator [] (T t) {
 			Txj_* ret= &p->getMem(t, true);
+			TxjP_ tp(ret);
+			refRelease(ret);
+			return tp;
+		}
+		TxjP_ operator [] (void) {
+			Txj_* ret= &p->getMem(true);
 			TxjP_ tp(ret);
 			refRelease(ret);
 			return tp;
@@ -675,14 +684,18 @@ public:
 	Txj_& operator [] (void);
 	Txj_& getMem (ccp prop, bool acquireRef= false);
 	Txj_& getMem (int index, bool acquireRef= false);
+	Txj_& getMem (bool acquireRef= false);
+	void strNewMem ();
 	template <typename T>
-	Txj_& operator= (T* t) {
+	Txj_& operator = (T* t) {
 		lock();
-		insertInParent();
+		strNewMem();
 		freeObj ();
 		val.vptr= (uint8_t*)t;
 		setType(VPTR);
-		unlock();
+		insertInParent();
+		if (!isDelDel)
+			unlock();
 		return *this;
 	}
 	/**
@@ -694,7 +707,7 @@ public:
 	template <typename T>
 	Txj_& operator= (const T& t) {
 		lock();
-		insertInParent();
+		strNewMem();
 		if(isQType(UPDATE)){
 			FeaturedMember fm= getFeaturedMember(FM_UPDATE_TIMESTAMP);
 			fm.m_pTimeStamp->update();
@@ -705,7 +718,9 @@ public:
 		val.vptr= (uint8_t*)malloc(size);
 		(T&)(*val.vptr)= t;
 		setType (BINARY);
-		unlock();
+		insertInParent();
+		if (!isDelDel)
+			unlock();
 		return *this;
 	}
 	Txj_& operator = (const char* s);
