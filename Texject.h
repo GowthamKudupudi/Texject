@@ -34,6 +34,7 @@ enum txj_log_level_ {
 	TXJ_THRDTST= 1 << 2
 };
 class Txj_;
+extern Txj_ nullTxj;
 struct FFPtrCmp {
 	bool operator() (const Txj_* a, const Txj_* b) const;
 };
@@ -468,12 +469,18 @@ public:
 		template <typename T>
 		TxjP_ operator [] (T t) {
 			Txj_* ret= &p->getMem(t, true);
+			if (ret== &nullTxj) {
+				return TxjP_();
+			}
 			TxjP_ tp(ret);
 			refRelease(ret);
 			return tp;
 		}
 		TxjP_ operator [] (void) {
 			Txj_* ret= &p->getMem(true);
+			if (ret== &nullTxj) {
+				return TxjP_();
+			}
 			TxjP_ tp(ret);
 			refRelease(ret);
 			return tp;
@@ -688,6 +695,7 @@ public:
 	void strNewMem ();
 	template <typename T>
 	Txj_& operator = (T* t) {
+		if (this== &nullTxj) return *this;
 		lock();
 		strNewMem();
 		freeObj ();
@@ -706,6 +714,7 @@ public:
 	 */
 	template <typename T>
 	Txj_& operator= (const T& t) {
+		if (this== &nullTxj) return *this;
 		lock();
 		strNewMem();
 		if(isQType(UPDATE)){
@@ -783,7 +792,6 @@ private:
 		int indent, vector<int>& vClWidths) const;
 	//LinkNRef GetLinkString (TxjPObj* pObj);
 };
-extern Txj_ nullTxj;
 ostream& operator << (ostream& out, const Txj_& f);
 ostream& operator << (ostream& out, const Txj_::TxjP_& f);
 

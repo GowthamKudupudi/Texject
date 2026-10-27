@@ -52,7 +52,7 @@ ThreadPool* tpoolPtr= nullptr;
 
 int child_exit_status= 0;
 FF_LOG_TYPE fflAllowedType= (FF_LOG_TYPE)(FFL_DEBUG | FFL_INFO | FFL_ERR);
-unsigned int fflAllowedBlks= 9|TXJ_MAIN;//|TXJ_THRDTST;
+unsigned int fflAllowedBlks= 9|TXJ_MAIN|TXJ_THRDTST;
 FerryTimeStamp ftsStart;
 FerryTimeStamp ftsEnd;
 FerryTimeStamp ftsDiff;
@@ -1321,7 +1321,7 @@ static Txj_* insertIntoCntnr (Txj_& c, Txj_& child);
 
 static Txj_* makeContainer () {
 	uniform_int_distribution<int> dist(0, 3);
-	int t= dist(t41_rng);
+	int t= 2;//dist(t41_rng);
 	Txj_* p= nullptr;
 	switch (t) {
 	case 0: p= new Txj_(Txj_::OBJ);
@@ -1721,13 +1721,13 @@ static void ppltTr (int) {
 			int cnt= 1;
 			if (isCtnr(*toBeCopied)) {
 				cnt= countNodes(*toBeCopied);
-				if (cnt-1 > 7) {
-					flDbg(TXJ_THRDTST, "%d: unlockshared %p", tid, toBeCopied);
-					t41_shUl(*toBeCopied);
-					flDbg(TXJ_THRDTST, "%d: unlocked %p", tid, c);
-					t41_shUl(*c);
-					flDbg(TXJ_THRDTST, "%d: copy continue", tid);continue;
-				}
+				// if (cnt-1 > 7) {
+				// 	flDbg(TXJ_THRDTST, "%d: unlockshared %p", tid, toBeCopied);
+				// 	t41_shUl(*toBeCopied);
+				// 	flDbg(TXJ_THRDTST, "%d: unlocked %p", tid, c);
+				// 	t41_shUl(*c);
+				// 	flDbg(TXJ_THRDTST, "%d: copy continue", tid);continue;
+				// }
 			}
 			if (inSubtree(*toBeCopied, *c)) {
 				t41_shUl(*toBeCopied);
@@ -1865,7 +1865,7 @@ TxjP_ pkTxjFrmTrNoLk (TxjP_& c, bool container, bool onlyRoot) {
 static void ppltTrNoLk (int) {
 	TxjP_ root(&ThrdTstTr);
 	while (totalTxjs < thrdTstMaxMem) {
-		uniform_int_distribution<int> ad(0, 6);
+		uniform_int_distribution<int> ad(0, 10);
 		int a;
 		TxjP_ c= pkTxjFrmTrNoLk(root, true, false);
 		if (c.get()==nullptr) {
@@ -1885,7 +1885,7 @@ static void ppltTrNoLk (int) {
 					c->size);
 				totalTxjsMtx.unlock();
 			}
-		} else if (a <= 3 && c->size<7) {
+		} else if (a <= 4 && c->size<7) {
 			uniform_int_distribution<int> td(0, 1);
 			TxjP_ pt;
 			if (td(t41_rng)) {
@@ -1902,7 +1902,7 @@ static void ppltTrNoLk (int) {
 					totalTxjs, inst.get(), t41_tn(*inst), &*c, t41_tn(*c), c->size);
 				totalTxjsMtx.unlock();
 			}
-		} else if (a <= 5 && c->size<7) {
+		} else if (a <= 9 && c->size<7) {
 			TxjP_ toBeCopied= pkTxjFrmTrNoLk(root, false, false);
 			if (toBeCopied.get()==nullptr) {
 				continue;
@@ -1911,10 +1911,10 @@ static void ppltTrNoLk (int) {
 			int cnt= 1;
 			if (isCtnr(*toBeCopied)) {
 				cnt= countNodes(*toBeCopied);
-				if (cnt-1 > 7) {
-					toBeCopied->unlockShared();
-					continue;
-				}
+				// if (cnt-1 > 7) {
+				// 	toBeCopied->unlockShared();
+				// 	goto pickOp;
+				// }
 			}
 			if (inSubtree(*toBeCopied, *c)) {
 				toBeCopied->unlockShared();
@@ -2057,6 +2057,7 @@ int test48 () {
 	string ThrdTstTrF= "tests/data/ThrdTstTr.obj.txj";
 	{std::ofstream truncator(ThrdTstTrF, std::ios::trunc);}
 	ThrdTstTr.init(fileProto+ThrdTstTrF);
+	thrdTstMaxMem= 100000;
 	cout<< "ThreadCount: "<< numThreads<< ", ObjectCount: "<< thrdTstMaxMem<< endl;
 	ftsStart.update();
 	Txj_::refAcquire(&ThrdTstTr);
@@ -2073,8 +2074,9 @@ int test48 () {
 	ThrdTstTr.save();
 	ftsEnd.update();
 	ftsDiff= ftsEnd-ftsStart;
-	cout<< "%TEST_FINISHED% in "<< ftsDiff<< "sec"<< endl;
+	cout<< "%SAVE_FINISHED% in "<< ftsDiff<< "sec"<< endl;
 
+	printMemUsage();
 	ThrdTstTr.freeObj();
 	cout<< "PASSED"<< endl<< endl;
 	return 1;

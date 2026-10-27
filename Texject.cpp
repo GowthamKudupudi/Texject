@@ -74,7 +74,7 @@ void Txj_::strNewMem () {
 } 
 
 void Txj_::refAcquire (Txj_* p) {
-	if (!p) return;
+	if (!p || p==&nullTxj) return;
 	TxjRefReg& r= refReg;
 	unique_lock<mutex> lk(r.mtx);
 	unsigned& ref= r.refs[p];
@@ -82,17 +82,23 @@ void Txj_::refAcquire (Txj_* p) {
 //	flDbg(TXJ_THRDTST, "%p refacquire count %d", p, ref);
 }
 void Txj_::refErase (Txj_* p) {
-	if (!p) return;
+	if (!p || p==&nullTxj) return;
 	TxjRefReg& r= refReg;
 	unique_lock<mutex> lk(r.mtx);
 	r.refs.erase(p);
 }
 void Txj_::refRelease (Txj_* p) {
-	if (!p) return;
+	if (!p || p==&nullTxj) return;
 	orphanMtx.lock();
 	TxjRefReg& r= refReg;
 	r.mtx.lock();
 	auto it= r.refs.find(p);
+	if (it==r.refs.end()) {
+		flDbg(TXJ_THRDTST, "%p refrelease count 0", p);
+		r.mtx.unlock();
+		orphanMtx.unlock();
+		return;
+	}
 	unsigned& ref= it->second;
 	--ref;
 //	flDbg(TXJ_THRDTST, "%p refrelease count %d", p, ref);
@@ -2332,6 +2338,7 @@ Txj_::~Txj_ () {
 }
 
 void Txj_::freeObj (bool bAssignment) {
+	if (this==&nullTxj) return;
 	switch (getType()) {
 	case NEW_MEMBER: {
 		break;}
@@ -2458,8 +2465,6 @@ Txj_& Txj_::getMem (bool acquireRef) {
 		freeObj();
 		goto settype;
 	}
-	flDbg(TXJ_THRDTST, "%p unlock", this);
-	unlock();
 	if (isType(SET_TYPE)) {
 		flDbg(TXJ_THRDTST, "orphanMtx lock");
 		orphanMtx.lock();
@@ -3579,8 +3584,10 @@ void Txj_::insertInParent () {
 		return;
 	}
 	Txj_& p= *tprnt;
-	flDbg(TXJ_THRDTST, "%p lock", &p);
-	p.lock();
+	if(!p.isType(SET_TYPE)) {
+		flDbg(TXJ_THRDTST, "%p lock", &p);
+		p.lock();
+	}
 	bool unmapped= delOrphan(tfm);
 	(void) unmapped;
 	Txj_* displaced= nullptr;
@@ -3589,16 +3596,19 @@ void Txj_::insertInParent () {
 		++p.size;
 		} else {
 			adopt();
-			p.unlock();
 			delIfNoRef(this);
+			flDbg(TXJ_THRDTST, "%p unlock", p);
+			p.unlock();
 			return;
-		} break;
+		}
+		break;
 	case OBJ:
 	case ORDERED_OBJ: {
 		pair<ffmap::iterator, bool> prNew= p.val.
 			pairs->insert(pair<ccp, Txj_*>(tfm.key, this));
 		if (!prNew.second) {
 			adopt();
+			flDbg(TXJ_THRDTST, "%p unlock", p);
 			p.unlock();
 			delIfNoRef(this);
 			return;
@@ -3621,6 +3631,7 @@ void Txj_::insertInParent () {
 		} break;
 	default:
 		adopt();
+		flDbg(TXJ_THRDTST, "%p unlock", p);
 		p.unlock();
 		delIfNoRef(this);
 		return;
@@ -3638,6 +3649,7 @@ void Txj_::insertInParent () {
 }
 
 Txj_& Txj_::operator = (Blob_ b) {
+	if (this==&nullTxj) return *this;
 	flDbg(TXJ_THRDTST, "%p lock", this);
 	lock();
 	strNewMem();
@@ -3660,6 +3672,7 @@ Txj_& Txj_::operator = (Blob_ b) {
 // 	return (*this)= (ccp)s;
 // }
 Txj_& Txj_::operator = (const char* s) {
+	if (this==&nullTxj) return *this;
 	flDbg(TXJ_THRDTST, "%p lock", this);
 	lock();
 	strNewMem();
@@ -3759,11 +3772,13 @@ Txj_& Txj_::operator = (const char* s) {
 }
 
 Txj_& Txj_::operator = (const string& s) {
+	if (this==&nullTxj) return *this;
 	operator=(s.c_str());
 	return *this;
 }
 
 Txj_& Txj_::operator = (const int& i) {
+	if (this==&nullTxj) return *this;
 	flDbg(TXJ_THRDTST, "%p lock", this);
 	lock();
 	strNewMem();
@@ -3783,7 +3798,7 @@ Txj_& Txj_::operator = (const int& i) {
 }
 
 Txj_& Txj_::operator = (const Txj_& f) {
-	if (this == &f) {
+	if (this == &f || this==&nullTxj) {
 		return *this;
 	}
 	flDbg(TXJ_THRDTST, "%p lock", this);
@@ -3814,13 +3829,20 @@ Txj_& Txj_::operator = (const Txj_& f) {
 	copy(f, COPY_ALL);
 	flDbg(TXJ_THRDTST, "%p unlockShared", &f);
 	f.unlockShared();
+	flDbg(TXJ_THRDTST, "%p lock", this);
+	lock();
 	insertInParent();
+	if (!isDelDel) {
+		flDbg(TXJ_THRDTST, "%p unlock", this);
+		unlock();
+	}
 	return *this;
 }
 
 // need to implement, segfaults during stringify but
 // can be used to hold pointers
 Txj_& Txj_::operator = (Txj_* f) {
+	if (this==&nullTxj) return *this;
 	flDbg(TXJ_THRDTST, "%p lock", this);
 	if (f->inSentence())
 		return *this;
@@ -4045,6 +4067,7 @@ Txj_& Txj_::addLink (const string&& objPath, const string&& linkPath) {
 }
 
 Txj_& Txj_::operator = (const double& d) {
+	if (this==&nullTxj) return *this;
 	if (isQType(UPDATE)) {
 		FeaturedMember fm=getFeaturedMember(FM_UPDATE_TIMESTAMP);
 		fm.m_pTimeStamp->update();
@@ -4065,6 +4088,7 @@ Txj_& Txj_::operator = (const double& d) {
 }
 
 Txj_& Txj_::operator = (const float& f) {
+	if (this==&nullTxj) return *this;
 	if(isQType(UPDATE)){
 		FeaturedMember fm=getFeaturedMember(FM_UPDATE_TIMESTAMP);
 		fm.m_pTimeStamp->update();
@@ -4085,6 +4109,7 @@ Txj_& Txj_::operator = (const float& f) {
 }
 
 Txj_& Txj_::operator = (const long& l) {
+	if (this==&nullTxj) return *this;
 	if(isQType(UPDATE)){
 		FeaturedMember fm=getFeaturedMember(FM_UPDATE_TIMESTAMP);
 		fm.m_pTimeStamp->update();
@@ -4101,6 +4126,7 @@ Txj_& Txj_::operator = (const long& l) {
 }
 
 Txj_& Txj_::operator = (const short& s) {
+	if (this==&nullTxj) return *this;
 	if(isQType(UPDATE)){
 		FeaturedMember fm=getFeaturedMember(FM_UPDATE_TIMESTAMP);
 		fm.m_pTimeStamp->update();
@@ -4117,6 +4143,7 @@ Txj_& Txj_::operator = (const short& s) {
 }
 
 Txj_& Txj_::operator = (const unsigned int& i) {
+	if (this==&nullTxj) return *this;
 	if(isQType(UPDATE)){
 		FeaturedMember fm=getFeaturedMember(FM_UPDATE_TIMESTAMP);
 		fm.m_pTimeStamp->update();
@@ -4133,6 +4160,7 @@ Txj_& Txj_::operator = (const unsigned int& i) {
 }
 
 Txj_& Txj_::operator = (const bool& b) {
+	if (this==&nullTxj) return *this;
 	if(isQType(UPDATE)){
 		FeaturedMember fm=getFeaturedMember(FM_UPDATE_TIMESTAMP);
 		fm.m_pTimeStamp->update();
