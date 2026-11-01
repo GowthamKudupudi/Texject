@@ -23,6 +23,9 @@
 #include <stdint.h>
 #include <cstring>
 #include <shared_mutex>
+#ifdef _DEBUG
+#include <source_location>
+#endif
 
 typedef unsigned int uint;
 
@@ -34,6 +37,7 @@ enum txj_log_level_ {
 	TXJ_THRDTST= 1 << 2
 };
 class Txj_;
+extern Txj_ nullTxj;
 struct FFPtrCmp {
 	bool operator() (const Txj_* a, const Txj_* b) const;
 };
@@ -468,12 +472,18 @@ public:
 		template <typename T>
 		TxjP_ operator [] (T t) {
 			Txj_* ret= &p->getMem(t, true);
+			if (ret== &nullTxj) {
+				return TxjP_();
+			}
 			TxjP_ tp(ret);
 			refRelease(ret);
 			return tp;
 		}
 		TxjP_ operator [] (void) {
 			Txj_* ret= &p->getMem(true);
+			if (ret== &nullTxj) {
+				return TxjP_();
+			}
 			TxjP_ tp(ret);
 			refRelease(ret);
 			return tp;
@@ -534,17 +544,23 @@ public:
 		void prune ();
 	};
 	static Locker_ lkr;
+#ifdef _DEBUG
+	void lock (Locker_& lkr= Txj_::lkr,
+		const std::source_location& loc= std::source_location::current()) const;
+	void unlock (Locker_& lkr= Txj_::lkr,
+		const std::source_location& loc= std::source_location::current()) const;
+	void lockShared (Locker_& lkr= Txj_::lkr,
+		const std::source_location& loc= std::source_location::current()) const;
+	void unlockShared (Locker_& lkr= Txj_::lkr,
+		const std::source_location& loc= std::source_location::current()) const;
+#else
 	void lock (Locker_& lkr= Txj_::lkr) const;
 	void unlock (Locker_& lkr= Txj_::lkr) const;
 	void lockShared (Locker_& lkr= Txj_::lkr) const;
 	void unlockShared (Locker_& lkr= Txj_::lkr) const;
+#endif
 	bool tryLock (Locker_& lkr= Txj_::lkr) const;
 	bool tryLockShared (Locker_& lkr= Txj_::lkr) const;
-	void lockIfExists (Locker_& lkr= Txj_::lkr) const;
-	void lockAllIfExists () const;
-	void lockSharedIfExists (Locker_& lkr= Txj_::lkr) const;
-	bool tryLockIfExists (Locker_& lkr= Txj_::lkr) const;
-	bool tryLockSharedIfExists (Locker_& lkr= Txj_::lkr) const;
 	static void pruneLkr ();
 //	static Txj_* MarkAsUpdatable(ccp link, const Txj_& rParent);
 //	static Txj_* UnMarkUpdatable(ccp link, const Txj_& rParent);
@@ -686,8 +702,10 @@ public:
 	Txj_& getMem (int index, bool acquireRef= false);
 	Txj_& getMem (bool acquireRef= false);
 	void strNewMem ();
+	void clrNewMem ();
 	template <typename T>
 	Txj_& operator = (T* t) {
+		if (this== &nullTxj) return *this;
 		lock();
 		strNewMem();
 		freeObj ();
@@ -706,6 +724,7 @@ public:
 	 */
 	template <typename T>
 	Txj_& operator= (const T& t) {
+		if (this== &nullTxj) return *this;
 		lock();
 		strNewMem();
 		if(isQType(UPDATE)){
@@ -783,7 +802,6 @@ private:
 		int indent, vector<int>& vClWidths) const;
 	//LinkNRef GetLinkString (TxjPObj* pObj);
 };
-extern Txj_ nullTxj;
 ostream& operator << (ostream& out, const Txj_& f);
 ostream& operator << (ostream& out, const Txj_::TxjP_& f);
 
