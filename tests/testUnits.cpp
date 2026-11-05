@@ -1246,7 +1246,7 @@ int test43 () {
 	cout<< "%TEST_FINISHED% in "<< ftsDiff<< "sec"<< endl;
 	printMemUsage();
 	cout<< "Testing: t==7"<< endl;
-	if (7==(int)*t) {
+	if (7==t) {
 		cout<< "PASSED"<< endl<< endl;
 		return 1;
 	}
