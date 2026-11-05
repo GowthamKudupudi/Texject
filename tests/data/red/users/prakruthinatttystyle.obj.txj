@@ -1,0 +1,26 @@
+inactive: false,
+email: "madhuraj.pvs3@gmail.com",
+name: "PrakruthiNatttyStyle",
+things: [
+	{
+		id: 1,
+		user: prakruthinatttystyle,
+		pics: [
+			{
+				ts: 1762621605370
+			}
+		],
+		name: "nati donne biryani",
+		location: [
+			12.9730766,
+			77.7700093
+		],
+		lastModed: 1762621607948
+	}
+],
+smsgs: [
+],
+reps: [
+],
+lmts: 1762621537836,
+bid: "n526LxTaTBcc6qCa"

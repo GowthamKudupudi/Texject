@@ -1,0 +1,35 @@
+inactive: false,
+email: "jyothiraju189@gmail.com",
+name: "DanaLakshmiPoojaStore",
+things: [
+	{
+		id: 1,
+		user: danalakshmipoojastore,
+		pics: [
+			{
+				ts: 1786713183635
+			}
+		],
+		name: "Archana Deepam oil",
+		location: [
+			16.9937954,
+			82.2521821
+		],
+		lastModed: 1786713208562,
+		rmsgs: [
+			{
+				id: 1,
+				user: "gowtham",
+				msg: "Nuvvula nune na?",
+				ts: 1786713263207,
+				smind: 57
+			}
+		]
+	}
+],
+smsgs: [
+],
+reps: [
+],
+lmts: 1786713263207,
+bid: "ibNPn5gvmYQcUrE7"

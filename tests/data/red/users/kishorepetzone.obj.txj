@@ -1,0 +1,27 @@
+inactive: false,
+email: "dogtrainerkkd@gmail.com",
+name: "kishorepetzone",
+things: [
+	{
+		id: 1,
+		user: kishorepetzone,
+		pics: [
+			{
+				ts: 1785410482290
+			}
+		],
+		name: "Discuss fish",
+		location: [
+			16.993668,
+			82.242457
+		],
+		details: "Friendly fish",
+		lastModed: 1785519013562
+	}
+],
+smsgs: [
+],
+reps: [
+],
+lmts: 1785320693376,
+bid: "lzlu6GeO8IeLcvgf"

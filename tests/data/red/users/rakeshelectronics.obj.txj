@@ -1,0 +1,36 @@
+inactive: false,
+email: "rakeshelectronicskkd@gmail.com",
+name: "RakeshElectronics",
+things: [
+	{
+		id: 1,
+		user: rakeshelectronics,
+		pics: [
+			{
+				ts: 1786366197325
+			}
+		],
+		name: "Deep blue 3 led module 12v ",
+		location: [
+			16.953328,
+			82.234276
+		],
+		lastModed: 1786366234439,
+		rmsgs: [
+			{
+				id: 1,
+				user: "gowtham",
+				msg: "Is it 450nm",
+				ts: 1786384492259,
+				new: true,
+				smind: 53
+			}
+		]
+	}
+],
+smsgs: [
+],
+reps: [
+],
+lmts: 1786384492259,
+bid: "9qF41vACxQYABJn7"

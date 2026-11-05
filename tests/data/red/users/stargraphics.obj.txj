@@ -1,0 +1,30 @@
+id: 14,
+inactive: false,
+email: "arbazpasha1644@gmail.com",
+name: "StarGraphics",
+things: [
+	{
+		id: 1,
+		user: stargraphics,
+		pics: [
+			{
+				ts: 1762160409205
+			},
+			{
+				ts: 1762160580737
+			}
+		],
+		name: "stickering car bike sticker ppf",
+		location: [
+			13.0112665,
+			77.7595463
+		],
+		lastModed: 1762160583042
+	}
+],
+smsgs: [
+],
+reps: [
+],
+lmts: 1762160357861,
+bid: "A1Glv0xvyRFtnvwj"

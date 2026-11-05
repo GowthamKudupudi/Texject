@@ -3,10 +3,10 @@
    "defaults": {},
    "configurations": [
       {
-         "name": "TestFFJSON",
+         "name": "testUnits",
          "type": "default",
          "project": "CMakeLists.txt",
-         "projectTarget": "TestFFJSON.exe",
+         "projectTarget": "testUnits.exe",
          "args": [ ],
          "env": {
             "PATH": "..\\..\\lib;%PATH%"

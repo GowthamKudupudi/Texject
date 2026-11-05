@@ -1,0 +1,66 @@
+inactive: false,
+email: "avanti.kudupudi@gmail.com",
+name: "GLSportsCentrum",
+things: [
+	{
+		id: 1,
+		user: glsportscentrum,
+		pics: [
+			{
+				ts: 1786097093266
+			}
+		],
+		name: "SG cricket bat",
+		location: [
+			16.988341,
+			82.240002
+		],
+		details: "Size 5",
+		lastModed: 1786097684257
+	},
+	{
+		id: 2,
+		user: glsportscentrum,
+		pics: [
+			{
+				ts: 1786165260542
+			}
+		],
+		name: "Jenga board game",
+		location: [
+			16.988341,
+			82.240002
+		],
+		lastModed: 1786165302692,
+		rmsgs: [
+			{
+				id: 1,
+				user: "gowtham",
+				msg: "Hi, price?",
+				ts: 1786166254652,
+				smind: 52
+			}
+		]
+	},
+	{
+		id: 3,
+		user: glsportscentrum,
+		pics: [
+			{
+				ts: 1786185989497
+			}
+		],
+		name: "Cricket ball cork like foam",
+		location: [
+			16.988341,
+			82.240002
+		],
+		lastModed: 1786186070224
+	}
+],
+smsgs: [
+],
+reps: [
+],
+lmts: 1786166254652,
+bid: "x6U53FwOgszYaDS4"

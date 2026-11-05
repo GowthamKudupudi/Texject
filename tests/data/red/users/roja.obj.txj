@@ -1,0 +1,113 @@
+id: 9,
+inactive: false,
+password: "e62b76e98c3830a79b6a9f67c465c14e",
+activationKey: "JUNfihL5sZAgVdb5",
+name: "roja",
+email: "capt.roja@gmail.com",
+newpassword: false,
+bid: "tK0rupPgIyVcLsHl",
+things: [
+	{
+		id: 1,
+		user: roja,
+		name: "sugar free tablets",
+		location: [
+			12.9941711,
+			77.7645416
+		],
+		pics: [
+			{
+				ts: 230062003
+			}
+		],
+		rmsgs: [
+			{
+				id: 1,
+				user: "gowtham",
+				msg: "what is its weight?",
+				ts: 1751949559305,
+				new: true,
+				smind: 26
+			}
+		]
+	},
+	{
+		id: 2,
+		user: roja,
+		name: "indulekha bringha hair oil",
+		location: [
+			12.9941367,
+			77.7645299
+		],
+		pics: [
+			{
+				ts: 231563303
+			}
+		]
+	},
+	{
+		id: 3,
+		user: roja,
+		name: "bose soundlink flex",
+		location: [
+			12.9941367,
+			77.7645299
+		],
+		details: "gen1",
+		pics: [
+			{
+				ts: 46155554
+			}
+		]
+	},
+	{
+		id: 4,
+		user: roja,
+		pics: [
+			{
+				ts: 37461325
+			}
+		],
+		name: "apple watch",
+		location: [
+			-35.1853822,
+			149.157167
+		],
+		rmsgs: [
+			{
+				id: 1,
+				user: "gowtham",
+				msg: "how much watch?",
+				ts: 1751113376425,
+				smind: 16,
+				rep: "600$"
+			}
+		]
+	},
+	{
+		id: 5,
+		user: roja,
+		pics: [
+			{
+				ts: 658871263
+			}
+		],
+		name: "Volvo XC60 suv car",
+		location: [
+			-35.1859016,
+			149.157779
+		],
+		rmsgs: [
+		]
+	}
+],
+lmts: 1751949559305,
+smsgs: [
+	[
+		"",
+		4,
+		1
+	]
+],
+reps: [
+]

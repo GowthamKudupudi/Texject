@@ -1,0 +1,62 @@
+id: 16,
+inactive: false,
+password: "d3db3ce9d693f1a33acf0532e3b689eb",
+email: "viswatejavaitla@gmail.com",
+activationKey: "fOfw4fQbOgE0DyL2",
+things: [
+	{
+		id: 3,
+		user: viswatejavaitla,
+		name: "Pen",
+		location: [
+			17.0660885,
+			81.8836344
+		],
+		pics: [
+			{
+				ts: 1750844726024
+			}
+		],
+		rmsgs: [
+			{
+				id: 1,
+				user: "gowtham",
+				msg: "entha?",
+				ts: 1750745425356,
+				smind: 12,
+				rep: "10rs"
+			},
+			{
+				id: 2,
+				user: "gowtham",
+				msg: "arey image pettu",
+				ts: 1750832511077,
+				smind: 13,
+				rep: "Done"
+			}
+		]
+	}
+],
+newpassword: false,
+name: "viswatejavaitla",
+smsgs: [
+	[
+		"",
+		3,
+		1
+	],
+	[
+		"",
+		3,
+		2
+	]
+],
+reps: [
+],
+bid: "ud7lTNSMbnPzH4rR",
+lmts: 1750832511077,
+pendingThings: {
+	thingId: 3,
+	picId: 0,
+	thngi: 2
+}

@@ -1,0 +1,30 @@
+inactive: false,
+email: "satyafarmhouse.info@gmail.com",
+name: "SatyaFarmHouse",
+things: [
+	{
+		id: 1,
+		user: satyafarmhouse,
+		pics: [
+			{
+				ts: 1785923672272
+			}
+		],
+		name: "Satya Farm House",
+		location: [
+			16.546451,
+			81.959976
+		],
+		details: "
+			9493651234
+			9493657234
+		",
+		lastModed: 1785923730576
+	}
+],
+smsgs: [
+],
+reps: [
+],
+lmts: 1785923118521,
+bid: "7rfoiyf2CEtXlqx7"

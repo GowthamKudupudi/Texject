@@ -1,0 +1,44 @@
+id: 10,
+inactive: false,
+email: "srikiranmainanduri@gmail.com",
+password: "8671f30fe3bced14df05edc98b23f0ee",
+activationKey: "2UAz7rkdFXdTLSb5",
+name: "kintu",
+things: [
+	{
+		id: 1,
+		user: kintu,
+		pics: [
+			{
+				ts: 1753545147725
+			}
+		],
+		name: "Toy Phone",
+		location: [
+			17.4267256,
+			78.5532021
+		],
+		details: "Yello and Purple",
+		rmsgs: [
+			{
+				id: 1,
+				user: "gowtham",
+				msg: "Nice!",
+				ts: 1753551504467,
+				smind: 36,
+				rep: "Yes it's awesome!"
+			}
+		]
+	}
+],
+smsgs: [
+	[
+		"",
+		1,
+		1
+	]
+],
+reps: [
+],
+bid: "jGkb2insuxL6ucp7",
+lmts: 1753551504467

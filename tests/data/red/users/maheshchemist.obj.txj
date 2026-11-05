@@ -1,0 +1,43 @@
+inactive: false,
+email: "prvsmanyam@gmail.com",
+name: "MaheshChemist",
+things: [
+	{
+		id: 1,
+		user: maheshchemist,
+		pics: [
+			{
+				ts: 1784694756031
+			}
+		],
+		name: "Azithromycin",
+		location: [
+			17.003497,
+			82.255990
+		],
+		details: "500mg",
+		lastModed: 1784694791355
+	},
+	{
+		id: 2,
+		user: maheshchemist,
+		pics: [
+			{
+				ts: 1784695347154
+			}
+		],
+		name: "Dulcoflex",
+		location: [
+			17.0041409,
+			82.2559499
+		],
+		details: ".5mg",
+		lastModed: 1784695364718
+	}
+],
+smsgs: [
+],
+reps: [
+],
+lmts: 1784694716744,
+bid: "dVSy0TRBnAHs19b3"

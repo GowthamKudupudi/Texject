@@ -1,0 +1,26 @@
+inactive: false,
+email: "nareshmanugula85@gmail.com",
+name: "DurgaBhavaniPanShop",
+things: [
+	{
+		id: 1,
+		user: durgabhavanipanshop,
+		pics: [
+			{
+				ts: 1786187505594
+			}
+		],
+		name: "Haldirams katta meetha",
+		location: [
+			16.9897965,
+			82.2511332
+		],
+		lastModed: 1786187528558
+	}
+],
+smsgs: [
+],
+reps: [
+],
+lmts: 1786187442533,
+bid: "oMGzljoGDkbEEbAi"

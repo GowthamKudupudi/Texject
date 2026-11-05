@@ -2,7 +2,7 @@
 #include<map>
 #include<vector>
 #include<ferrybase/mystdlib.h>
-#include<FFJSON.h>
+#include<Texject.h>
 using namespace std;
 
 int child_exit_status=0;
@@ -35,7 +35,7 @@ int main (int argc, char** argv) {
     vector<map<string,int>::iterator>::iterator ititmStrInt=vStrIntIt.begin();
     ititmStrInt++;
     cout<<(*ititmStrInt)->first<<endl;
-    MyStruct mystruct((void*)new Txj(),sizeof(Txj));
-    Txj& i=(Txj&)mystruct;
+    MyStruct mystruct((void*)new Txj_(),sizeof(Txj_));
+    Txj_& i=(Txj_&)mystruct;
     cout<<i<<endl;
 }

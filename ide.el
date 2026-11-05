@@ -4,11 +4,11 @@
 
 ;;; Code:
 (let-alist projects
-  (if (eq .FFJSON 't)
-      (progn (message "FFJSON already loaded"))
+  (if (eq .Texject 't)
+      (progn (message "Texject already loaded"))
     (progn
-      (setq projects '((FFJSON . 't)))
-      (setq CMakeProject "FFJSON")
+      (setq projects '((Texject . 't)))
+      (setq CMakeProject "Texject")
 
       (setq cmake-ide-build-dir
             (concat ide-project-dir
@@ -20,9 +20,9 @@
 	                 "-DCMAKE_EXPORT_COMPILE_COMMANDS=1 "
                     "-DBUILD_TESTING=1"))
       (setq MakeThreadCount 6)
-      (setq DebugTarget "TestFFJSON")
+      (setq DebugTarget "testUnits")
       (setq TargetArguments "")
-      (message "FFJSON emacs project loaded."))))
+      (message "Texject emacs project loaded."))))
 
-(provide 'FFJSON)
+(provide 'Texject)
 ;;; ide.el ends here

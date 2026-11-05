@@ -1,0 +1,6 @@
+name: "Taigun",
+
+#comment: "This is not printed but preserved on save",
+bhp: 1445,
+
+gearBox: "DSG"

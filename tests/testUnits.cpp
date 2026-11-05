@@ -1,0 +1,2302 @@
+/*
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
+ * and open the template in the editor.
+ */
+
+/* 
+ * File:   TestTxj.cpp
+ * Author: gowtham
+ *
+ * Created on 26 August, 2016, 10:49 PM
+ */
+
+#include <stdlib.h>
+#include <iostream>
+#include <logger.h>
+#include <ferrybase/FerryTimeStamp.h>
+#include <ferrybase/mystdlib.h>
+#include <ferrybase/StrPool.h>
+#include <string>
+#include <fstream>
+#include <streambuf>
+#include <algorithm>
+#include <stdio.h>
+#include <string.h>
+#include <execinfo.h>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <math.h>
+#include <ios>
+#include <random>
+#include <atomic>
+#include <chrono>
+#include <functional>
+#include <thread>
+#include <queue>
+#include <condition_variable>
+#include <mutex>
+#include "Texject.h"
+
+typedef const char* ccp;
+
+/*
+ * Simple C++ Test Suite
+ */
+using namespace std;
+
+#include <ferrybase/ThreadPool.h>
+
+thread_local int tid= 0;
+ThreadPool* tpoolPtr= nullptr;
+
+int child_exit_status= 0;
+FF_LOG_TYPE fflAllowedType= (FF_LOG_TYPE)(FFL_DEBUG | FFL_INFO | FFL_ERR);
+unsigned int fflAllowedBlks= 9|TXJ_MAIN|TXJ_THRDTST;
+FerryTimeStamp ftsStart;
+FerryTimeStamp ftsEnd;
+FerryTimeStamp ftsDiff;
+
+double vm, rss, initrss= 0;
+void mem_usage(double& vm_usage, double& resident_set) {
+   vm_usage = 0.0;
+   resident_set = 0.0;
+   //get info from proc directory
+   ifstream stat_stream("/proc/self/stat",ios_base::in);
+   //create some variables to get info
+   string pid, comm, state, ppid, pgrp, session, tty_nr;
+   string tpgid, flags, minflt, cminflt, majflt, cmajflt;
+   string utime, stime, cutime, cstime, priority, nice;
+   string O, itrealvalue, starttime;
+   unsigned long vsize;
+   long rss;
+   // don't care about the rest
+   stat_stream >> pid >> comm >> state >> ppid >> pgrp >> session >> tty_nr
+   >> tpgid >> flags >> minflt >> cminflt >> majflt >> cmajflt
+   >> utime >> stime >> cutime >> cstime >> priority >> nice
+   >> O >> itrealvalue >> starttime >> vsize >> rss; 
+   stat_stream.close();
+   // for x86-64 is configured to use 2MB pages
+   long page_size_kib = sysconf(_SC_PAGE_SIZE) / 1024; 
+   vm_usage = vsize / 1024.0;
+   resident_set = rss * page_size_kib;
+}
+
+void printMemUsage () {
+   mem_usage(vm, rss);
+   //cout<< "Virtual Memory: "<< vm<< "KiB"<< endl;
+	cout<< "rss: "<< rss<< ", arss: "<< rss-initrss<< "KiB"<< endl;
+	initrss= rss;
+}
+
+struct Test_ {
+   Test_ () {
+      cout << "TestConstructor" << endl;
+   };
+   ~Test_ () {
+      cout << "TestDestructor" << endl;
+   };
+};
+Test_ testFunc1 () {
+   Test_ t;
+   return t;
+}
+Test_ testFunc2 () {
+   Test_ t;
+   return t;
+}
+void test1 () {
+   cout << "===================================================" << endl;
+   cout << "               TestTxj test 1                      " << endl;
+   cout << "===================================================" << endl;
+   Txj_ f(Txj_::ARRAY);
+   f[0]=1;
+   char cCurrentPath[FILENAME_MAX];
+   
+   if (!GetCurrentDir(cCurrentPath, sizeof (cCurrentPath))) {
+      return;
+   }
+   
+   cCurrentPath[sizeof (cCurrentPath) - 1] = '\0'; /* not really required */
+   char c = '\r';
+   ffl_info(1, "\\r=%d", (int) c);
+   ffl_info(1, "The current working directory is %s", cCurrentPath);
+   fflush(stdout);
+   string fn = "sample.txj";
+   //string fn = "/home/gowtham/Projects/ferrymediaserver/output.txj";
+   ifstream ifs(fn.c_str(), ios::in | ios::ate);
+   string ffjsonStr;
+   ifs.seekg(0, ios::end);
+   ffjsonStr.reserve(ifs.tellg());
+   ifs.seekg(0, ios::beg);
+   ffjsonStr.assign((istreambuf_iterator<char>(ifs)),
+                    istreambuf_iterator<char>());
+   Txj_ ffo(ffjsonStr);
+   cout << "amphibians: " << endl;
+   Txj_::Iterator i = ffo["amphibians"].begin(); //["amphibians"]
+   while ((i != ffo["amphibians"].end())) {
+      cout << string(i) << ":" << i->stringify() << endl;
+      ++i;
+   }
+   cout << endl;
+   string ps = ffo.prettyString(false, true);
+   cout << ps << endl;
+   Txj_ ffo2(ps);
+   ffo2["amphibians"]["genome"].setEFlag(Txj_::E_FLAGS::B64ENCODE);
+   ffo2["amphibians"]["salamanders"] = "salee";
+   string ps2 = ffo2.prettyString(false, true);
+   cout << ps2 << endl;
+   ffo2["amphibians"]["salamanders"] = "malee";
+   ffo2["amphibians"]["count"] = 4;
+   ffo2["amphibians"]["density"] = 5.6;
+   ffo2["amphibians"]["count"] = 5;
+   ffo2["amphibians"]["genome"] = "<xml>sadfalejhjroifndk</xml>";
+   if (ffo2["amphibians"]["gowtham"]) {
+      cout << ffo2["amphibians"].size << endl;
+      ffo2["amphibians"].trim();
+      cout << ffo2["amphibians"].size << endl;
+   };
+   ffo2["animals"][3] = "satish";
+   cout << ffo2["animals"][4].prettyString() << endl;
+   cout << "size: " << ffo2["animals"].size << endl;
+   ffo2["animals"][3] = "bear";
+   cout << "after bear inserted at 4" << ffo2["animals"].prettyString() << endl;
+   cout << "size: " << ffo2["animals"].size << endl;
+   ffo2["animals"].trim();
+   cout << "size after trim: " << ffo2["animals"].size << endl;
+   string ps3 = ffo2.prettyString();
+   cout << ps3 << endl;
+   cout << "Txj_ signature size: " << sizeof (ffo2) << endl;
+   
+   cout << "sizeInfo test 1" << endl;
+   
+   cout << "size of char: " << sizeof (char) << endl;
+   cout << "size of short: " << sizeof (short) << endl;
+   cout << "size of int: " << sizeof (int) << endl;
+   cout << "size of long: " << sizeof (long) << endl;
+   cout << "size of long long: " << sizeof (long long) << endl;
+   
+   cout << "size of float: " << sizeof (float) << endl;
+   cout << "size of double: " << sizeof (double) << endl;
+   
+   cout << "size of pointer: " << sizeof (int *) << endl;
+   
+   ffo2["amphibians"]["frogs"].setQType(Txj_::QUERY_TYPE::QUERY);
+   ffo2["amphibians"]["salamanders"].setQType(Txj_::QUERY_TYPE::DEL);
+   ffo2["amphibians"]["genome"].setQType(Txj_::QUERY_TYPE::SET);
+   ffo2["birds"][1].setQType(Txj_::QUERY_TYPE::DEL);
+   ffo2["birds"][2].setQType(Txj_::QUERY_TYPE::SET);
+   ffo2["birds"][3].setQType(Txj_::QUERY_TYPE::QUERY);
+   string query = ffo2.queryString();
+   ffo2["amphibians"]["genome"]= "<xml>gnomechanged :p</xml>";
+   ffo2["birds"][2]= "kiwi";
+   cout << ffo2.prettyString() << endl;
+   cout << query << endl;
+   Txj_ qo(query);
+   query = qo.queryString();
+   cout<< query<< endl;
+   
+   if (ffo2["amphibians"]["frogs"].isEFlagSet(Txj_::E_FLAGS::EXTENDED)) {
+      cout << "already extended" << endl;
+   }
+   Txj_* ao = ffo2.answerObject(&qo);
+   if (ffo2["amphibians"]["frogs"].isEFlagSet(Txj_::E_FLAGS::EXTENDED)) {
+      cout << "already extended" << endl;
+   }
+   
+   cout << ao->stringify() << endl;
+   string ffo2a = ffo2.prettyString();
+   cout << ffo2a << endl;
+   Txj_ ffo2ao(ffo2a);
+   ffo2a = ffo2ao.stringify();
+   cout << ffo2a << endl;
+   ffo2a = ffo2ao.prettyString();
+   cout << ffo2a << endl;
+   Txj_::refRelease(ao);
+   cout << "3rd students Maths marks: " <<
+   ffo2["studentsMarks"][2]["Maths"].prettyString() << endl;
+   if (ffo2["null"] == nullptr){
+      cout << "ffo2[\"null\"] == NULL" << endl;
+   }
+   cout << "end of test" << endl;
+   return;
+}
+
+struct testStruct {
+   string* s;
+};
+
+void test2 () {
+   cout << "===================================================" << endl;
+   cout << "               TestTxj test 2                   " << endl;
+   cout << "===================================================" << endl;
+
+   string fn = "/home/gowtham/Projects/ferrymediaserver/offpmpack.json";
+   ifstream ifs(fn.c_str(), ios::in | ios::ate);
+   if (ifs.is_open()) {
+      string ffjsonStr;
+      ifs.seekg(0, ios::end);
+      ffjsonStr.reserve(ifs.tellg());
+      ifs.seekg(0, ios::beg);
+      ffjsonStr.assign((istreambuf_iterator<char>(ifs)),
+                       istreambuf_iterator<char>());
+      Txj_ ffo(ffjsonStr);
+      ffo["ferryframes"].setEFlag(Txj_::B64ENCODE);
+      string* s = new string(ffo.stringify(true));
+      cout << *s << endl;
+      s->append(":)");
+      testStruct ts;
+      ts.s = s;
+      delete ts.s;
+   }
+   cout << "%TEST_PASSED%" << endl;
+}
+
+void test3 () {
+   cout << "===================================================" << endl;
+   cout << "        TestTxj_ test 3 (comparing strings)      " << endl;
+   cout << "===================================================" << endl;
+   
+   Txj_ sample("file://sample.txj");
+   if ((int) sample["donkeys"] < 4) {
+      cout << "alert: my donkey is missing" << endl;
+   }
+   if (strcmp("John", sample["example"]["employees"][0]["firstName"]) == 0) {
+      cout << "info: yes John is fist employee!" << endl;
+   }
+   cout << "%TEST_PASSED%" << endl;
+}
+
+void test4 () {
+   cout << "===================================================" << endl;
+   cout << "			TestTxj_ test 4 (testing links)		   " << endl;
+   cout << "===================================================" << endl;
+    Txj_ f("file://linksSample.txj");
+    ffmap* emln = f["obj1"].val.pairs;
+    if (emln->find(ccpIfInPool("127.0.0.2"))!=emln->end()) {
+       Txj_* ffemln = (*emln)[ccpIfInPool("127.0.0.2")];
+       Txj_::Link* link =
+          ffemln->getFeaturedMember(Txj_::FM_LINK).link;
+       const char* linkName=(*link)[0];
+       cout << "127.0.0.2 is link to " << linkName << endl;
+    }
+   cout << (const char*)f["obj1"]["127.0.0.2"]["rootdir"] << endl;
+   cout << f << endl;
+   cout << f["things"]["car"][0] << endl;
+   Txj_& ff = f["things"]["car"][1];
+   ff.addLink(f, "users.gowtham.things.1");
+   cout << f << endl;
+   cout << "%TEST_PASSED%" << endl;
+}
+
+void test5 () {
+   cout << "===================================================" << endl;
+   cout << "		TestTxj test 5 (testing extensions)		   " << endl;
+   cout << "===================================================" << endl;
+   Txj_ f("file://ExtensionTest.txj");
+   cout << f.prettyString() << endl;
+   
+   cout << "Marks[0]['Maths']: " << f["Marks"][0]["Maths"].prettyString()
+   << endl;
+   
+   cout << "StudentsMarks['Gowtham']['Maths']: "
+   << f["School"]["Class1"]["StudentsMarks"]["Gowtham"]["Maths"].prettyString()
+   << endl;
+   Txj_ f2(f.prettyString());
+   cout << f2.prettyString() << endl;
+   
+   Txj_ f3(f2);
+   cout << "f3 StudentsMarks['Gowtham']['Maths']: "
+   << f3["School"]["Class1"]["StudentsMarks"]["Gowtham"]["Maths"].prettyString()
+   << endl;
+   Txj_ f4(f2.stringify());
+   cout << f4.stringify() << endl;
+}
+
+void test6 () {
+   cout << "===================================================" << endl;
+   cout << "	TestTxj test 6 (testing data type sizes)		" << endl;
+   cout << "===================================================" << endl;
+   map<string, Txj_*> m;
+   pair<string, Txj_*> p(string("gowtham"), (Txj_*) NULL);
+   cout << &p.first << endl;
+   m.insert(p);
+   cout << &(*m.find("gowtham")) << endl;
+   cout << &(*m.find("gowtham")) << endl;
+   int i;
+   Txj_ f;
+   vector<string*> v;
+   map<string, Txj_*>::iterator it;
+   cout << "map:" << sizeof (m) << endl;
+   cout << "int:" << sizeof (i) << endl;
+   cout << "ffjson:" << sizeof (f) << endl;
+   cout << "vector:" << sizeof (v) << endl;
+   cout << "iterator:" << sizeof (it) << endl;
+   cout << "FerryTimeStamp:" << sizeof (FerryTimeStamp) << endl;
+   cout << "FerryTimeStamp&:" << sizeof (FerryTimeStamp&) << endl;
+   cout << "double:" << sizeof (double) << endl;
+   
+}
+
+void test7 () {
+   cout << "===================================================" << endl;
+   cout << "	TestTxj test 7 (testing MultiLineArray)		" << endl;
+   cout << "===================================================" << endl;
+   Txj_ f("file://MultiLineArray.txj");
+   string sF = f.prettyString();
+   cout << sF << endl;
+   Txj_ f2(sF);
+   string sF2 = f2.stringify();
+   cout << f2 << endl;
+   Txj_ f3(sF2);
+   string sF3 = f3.prettyString();
+   cout << sF3 << endl;
+   Txj_ f4(sF3);
+   string sF4 = f4.stringify();
+   cout << sF4 << endl;
+   Txj_ f5(sF4);
+   string sF5 = f5.prettyString();
+   cout << sF5 << endl;
+}
+
+void test8 () {
+   cout << "===================================================" << endl;
+   cout << "           TestTxj test 8 sample.txj               " << endl;
+   cout << "===================================================" << endl;
+   //Txj_ f("file://example.json");
+   //Txj_ f("file://Employee.oob.txj");
+   //Txj_ f("file://red/users2.obj.txj");
+   Txj_ f("{\"Rs\":{\"20\":[2]}}");
+	int i= f["Rs"]["20"][0];
+   //Txj f("[\n]");
+   cout<< f.prettyString()<< endl;
+   cout<< f.stringify()<< endl;
+   // Txj_ f2(f.prettyString());
+   // cout<< f2<< endl;
+   // string sF2= f2.stringify();
+   // cout<< sF2<< endl;
+   // Txj_ f3(sF2);
+   // string sF3= f3.prettyString();
+   // cout<< sF3<< endl;
+	//f["necktwi"]["things"][0]["id"]= 1728;
+	//f.save();
+}
+
+void test9 () {
+   cout << "===================================================" << endl;
+   cout << "                     erase test                    " << endl;
+   cout << "===================================================" << endl;
+   Txj_ f("{}");
+   f["cameras"].erase(string("cam"));
+   
+}
+
+struct MyStruct {
+   int tv_sec;
+   int tv_nsec;
+};
+
+void test10 () {
+   cout << "===================================================" << endl;
+   cout << "				 typecast   test					" << endl;
+   cout << "===================================================" << endl;
+   Txj_ f("{}");
+   f["a"] = *(new timespec());
+   timespec& t = (timespec&) f["a"];
+   Txj_& ff = f;
+   timespec& tt = (timespec&) ff["a"];
+   tt.tv_sec = 'a';
+   tt.tv_nsec = 'b';
+   cout << ff << endl;
+   cout << "parsing string" << endl;
+   Txj_ f3(ff.prettyString());
+   cout << f3 << endl;
+   timespec& t3 = (timespec&) f3["a"];
+   cout << (char) t3.tv_sec << "," << (char) t3.tv_nsec << endl;
+}
+
+void test11 () {
+   cout << "===================================================" << endl;
+   cout << "      subscript operator exection flow	            " << endl;
+   cout << "===================================================" << endl;
+   Txj_ f("{}");
+   f["a"]["b"] = 2;
+   Txj_& b = f["a"]["b"];
+   int bb = (int) f["a"]["b"];
+   if (f["b"]) {
+      cout << "itWontPrint" << endl;
+   }
+}
+
+void test12 () {
+   cout << "===================================================" << endl;
+   cout << "               update query                        " << endl;
+   cout << "===================================================" << endl;
+   Txj_ f("{necktwi:{things:[{id:0}]}}");
+   int j = 10;
+   //while (j) {
+      cout << "Creating new answer object: " << endl;
+      Txj_ tf("{necktwi:{things:[{name:\"batman\"}]}}");
+      Txj_ tf2("{necktwi:{things:[{name:?}]}}");
+      static FerryTimeStamp ft;
+      Txj_ ao(f);
+      Txj_* ff = f.answerObject(&tf,NULL,ft, &ao);
+      //ft.update();
+      if(!ff)return;
+      cout << "res: " << *ff << endl;
+      //delete ff;
+      ff = f.answerObject(&tf2,NULL,ft);
+      cout << *ff << endl;
+      //f["newState"] = "RECORD";
+      //j--;
+      //}
+}
+
+void test13 () {
+   cout << "===================================================" << endl;
+   cout << "                       save file					      " << endl;
+   cout << "===================================================" << endl;
+   Txj_ fa(Txj_::ARRAY);
+   fa[0]=1;
+   Txj_ f("file://saveFileSample.txj|OBJECT");
+   f["test"]="OK";
+   //f["obj4"]["nestedFile"]["test"]="OK";
+   Txj_ pvh;
+   pvh = &f["vh"]["obj6"];
+   pvh["users"]["test"]="OK";
+   f["txoTest"]["test"]="OK";
+   f["txoTest"].clearEFlag(Txj_::FILE);
+   cout << f << endl;
+   f.save();
+   // Txj_ ff("file://saveFileSample.txj");
+   // Txj_& ln = ff["vh"]["obj5"]["things"][].
+   //    addLink(ff["vh"]["obj5"], "users.gowtham.things.0");
+   // if (!ln)
+   //    delete &ln;
+   // cout << ff << endl;
+   // ff.save();
+}
+
+void test14 () {
+   cout << "===================================================" << endl;
+   cout << "                       leak test					      " << endl;
+   cout << "===================================================" << endl;
+   Txj_ f("file:///home/Necktwi/workspace/ferryfair/config.txj");
+   cout << f << endl;
+}
+
+void test15 () {
+   Txj_ f("file:///home/Necktwi/workspace/ferryfair/config.txj");
+   cout << f << endl;
+}
+
+vector<string> strs;
+void test16 () {
+   for (int i=0; i<1000000; ++i)
+      strs.push_back(random_alphnuma_string(24));
+   sort(strs.begin(), strs.end());
+}
+
+void test17 () {
+   string randstr = random_alphnuma_string(24);
+   auto it = lower_bound(strs.begin(), strs.end(), randstr);
+   strs.insert(it, randstr);
+}
+
+void test18 () {
+   cout << "===================================================" << endl;
+   cout << "                       set test					      " << endl;
+   cout << "===================================================" << endl;
+   Txj_ f("{1, 2, 3, 3}");
+   cout << f << endl;
+}
+
+void test19 () {
+   cout << "===================================================" << endl;
+   cout << "                       Test_  					      " << endl;
+   cout << "===================================================" << endl;
+   Test_ t1 = testFunc1();
+   //Test_& t2 = testFunc1();
+   Test_ t3 = testFunc1();
+   //Test_& t4 = testFunc1();
+}
+
+Txj_ t;
+void test20 () {
+   cout << "===================================================" << endl;
+   cout << "                       StressTest				      " << endl;
+   cout << "===================================================" << endl;
+   for (int i=0; i<1; ++i) {
+      string a("a");
+      a+=to_string(i);
+      for (int j=0; j<1000;++j) {
+         for (int k=0; k<10;++k) {
+            string c = "c";
+            c += to_string(k);
+            string val = a +"b" + to_string(j) + c;
+            t[a][j][c]=val;
+            //cout << val;
+         }
+      }
+      cout << ".";fflush(stdout);
+   }
+   double vm, rss;
+   mem_usage(vm, rss);
+   double tt = 3.6789787878*pow(10,6);
+   printf("%3.0lf", tt);
+   cout << "Virtual Memory: " << vm << "\nResident set size: " << rss << endl;
+}
+
+char* returnCharDeleteStr () {
+   string s("movable");
+   return const_cast<char*>(std::move(s).c_str());
+}
+
+void test22 () {
+   char* cs;
+   {
+      string s("movable");
+      //cs = returnCharDeleteStr(std::move(s));
+      //cs = const_cast<char*>(std::move(s).c_str());
+      cs = returnCharDeleteStr();
+      cout << s << endl;
+   }
+   string s2("movable2");
+   string s3("movable3");
+   string sa[100];
+   for (int i=0;i<100;++i) {
+      sa[i]=to_string(i)+"imovable";
+      cout << sa[i] <<endl;
+   }
+   cout << s2 << endl;
+   cout << s3 << endl;
+   cs[0]='L';
+   cout << cs << endl;
+   //free(cs);
+}
+
+int test24 () {
+	cout << "## 1. int copy test" << endl;
+	int i= 1;
+	string istr= to_string(i);
+	ccp cstr= istr.c_str();
+   ftsStart.update();
+	Txj_ t(cstr);
+	Txj_ t2(t);
+	Txj_ t3;
+	t3= t2;
+   ftsEnd.update();
+   ftsDiff= ftsEnd-ftsStart;
+   cout<< "%TEST_FINISHED% in "<< ftsDiff<< "sec"<< endl;
+	cout<< t<< endl;
+   cout<< t2<< endl;
+   cout<< "i: "<< i<< endl;
+   cout<< "t3: "<< t3<< endl;
+	printMemUsage();
+	cout<< "Testing: t3==i"<< endl;
+	if ((int)t3==i) {
+		cout<< "PASSED"<< endl<< endl;
+		return 1;
+	}
+	cout<< "FAILED"<< endl<< endl;
+	return 0;
+}
+
+int test25 () {
+	cout << "## 2. string copy test" << endl;
+	ccp tstr= "somestring";
+	string str("\"");
+	str+= tstr; str+= "\"";
+	ccp cstr= str.c_str();
+   ftsStart.update();
+	Txj_ t(cstr);
+	Txj_ t2(t);
+	Txj_ t3;
+	t3= t2;
+   ftsEnd.update();
+   ftsDiff= ftsEnd-ftsStart;
+   cout<< "%TEST_FINISHED% in "<< ftsDiff<< "sec"<< endl;
+	cout<< t<< endl;
+   cout<< t2<< endl;
+   cout<< "tstr: "<< tstr<< endl;
+   cout<< "(ccp)t3: "<< (ccp)t3<< endl;
+	printMemUsage();
+	cout<< "Testing: (ccp)t3==tstr"<< endl;
+	if (!strcmp((ccp)t3, tstr)) {
+		cout<< "PASSED"<< endl<< endl;
+		return 1;
+	}
+	cout<< "FAILED"<< endl<< endl;
+	return 0;
+}
+
+int test26 () {
+	cout << "## 3. obj stringify test" << endl;
+	ccp istr= "{i:1,s:\"somestring\"}";
+	ccp jstr= "{\"i\":1,\"s\":\"somestring\"}";
+	ftsStart.update();
+	Txj_ t(istr);
+   Txj_ tj(jstr);
+	string ostr= t.stringify();
+	string ojstr= tj.stringify(true);
+   ftsEnd.update();
+   ftsDiff= ftsEnd-ftsStart;
+   cout<< "%TEST_FINISHED% in "<< ftsDiff<< "sec"<< endl;
+	cout<< "istr: "<< istr<< endl;
+	cout<< "jstr: "<< jstr<< endl;
+	cout<< "ostr: "<< ostr<< endl;
+	cout<< "ojstr: "<< ojstr<< endl;
+	printMemUsage();
+	cout<< "Testing: ostr==istr && ojstr==jstr"<< endl;
+	if (!strcmp(ostr.c_str(), istr) && !strcmp(ojstr.c_str(), jstr)) {
+		cout<< "PASSED"<< endl<< endl;
+		return 1;
+	}
+	cout<< "FAILED"<< endl<< endl;
+	return 0;
+}
+
+int test27 () {
+	cout << "## 4. obj copy test" << endl;
+	ccp istr= "{i:1,s:\"somestring\"}";
+	ftsStart.update();
+	Txj_ t(istr);
+	Txj_ t2(t);
+	Txj_ t3;
+	t3= t2;
+   ftsEnd.update();
+   ftsDiff= ftsEnd-ftsStart;
+   cout<< "%TEST_FINISHED% in "<< ftsDiff<< "sec"<< endl;
+	cout<< "istr: "<< istr<< endl;
+	cout<< t<< endl;
+   cout<< t2<< endl;
+	string ostr= t3.stringify();
+	cout<< "ostr: "<< ostr<< endl;
+	printMemUsage();
+	cout<< "Testing: ostr==istr"<< endl;
+	if (!strcmp(ostr.c_str(), istr)) {
+		cout<< "PASSED"<< endl<< endl;
+		return 1;
+	}
+	cout<< "FAILED"<< endl<< endl;
+	return 0;
+}
+
+int test28 () {
+	cout << "## 5. array copy test" << endl;
+	ccp istr= "[1,\"somestring\"]";
+	ftsStart.update();
+	Txj_ t(istr);
+	Txj_ t2(t);
+	Txj_ t3;
+	t3= t2;
+   ftsEnd.update();
+   ftsDiff= ftsEnd-ftsStart;
+   cout<< "%TEST_FINISHED% in "<< ftsDiff<< "sec"<< endl;
+	cout<< "istr: "<< istr<< endl;
+	cout<< "t: "<< t<< endl;
+   cout<< "t2: "<< t2<< endl;
+	string ostr= t3.stringify();
+	cout<< "ostr: "<< ostr<< endl;
+	printMemUsage();
+	cout<< "Testing: ostr==istr"<< endl;
+	if (!strcmp(ostr.c_str(), istr)) {
+		cout<< "PASSED"<< endl<< endl;
+		return 1;
+	}
+	cout<< "FAILED"<< endl<< endl;
+	return 0;
+}
+
+int test29 () {
+	cout << "## 6. url string test" << endl;
+	ccp istr= "file://tests/data/urlstring.obj.txj";
+	ftsStart.update();
+	Txj_ t(istr);
+	ifstream ifs("tests/data/urlstring.obj.txj", ios::in);
+	string fStr("{");
+	if (ifs.is_open()) {
+		fStr.append((istreambuf_iterator<char>(ifs)),
+						  istreambuf_iterator<char>());
+		ifs.close();
+	}
+	fStr+="}";
+	string ostr= t.stringify();
+   ftsEnd.update();
+   ftsDiff= ftsEnd-ftsStart;
+   cout<< "%TEST_FINISHED% in "<< ftsDiff<< "sec"<< endl;
+	cout<< "fstr: "<< fStr<< endl;
+	cout<< "ostr: "<< ostr<< endl;
+	printMemUsage();
+	cout<< "Testing: ostr==fStr"<< endl;
+	if (ostr==fStr) {
+		cout<< "PASSED"<< endl<< endl;
+		return 1;
+	}
+	cout<< "FAILED"<< endl<< endl;
+	return 0;
+}
+
+int test30 () {
+	cout << "## 7. parse example.json test" << endl;
+	ccp istr= "file://tests/data/simple.json";
+	ftsStart.update();
+	Txj_ t(istr);
+	string ostr= t.stringify();
+	bool areContractors= t["areContractors"];
+	ccp firstEmployeeFirstName= t["employees"][0]["firstName"];
+   ftsEnd.update();
+   ftsDiff= ftsEnd-ftsStart;
+   cout<< "%TEST_FINISHED% in "<< ftsDiff<< "sec"<< endl;
+	cout<< "areContractors: "<< areContractors<< endl;
+	cout<< "firsEmployeeFirstName: "<< firstEmployeeFirstName<< endl;
+	cout<< "ostr: "<< ostr<< endl;
+	printMemUsage();
+	cout<< "Testing: areContractors==true && firstEmployeeFirstName==John"<<
+		endl;
+	if (areContractors && !strcmp(firstEmployeeFirstName, "John")) {
+		cout<< "PASSED"<< endl<< endl;
+		return 1;
+	}
+	cout<< "FAILED"<< endl<< endl;
+	return 0;
+}
+
+int test31 () {
+	cout << "## 8. parse nullmember.obj.txj test" << endl;
+	ccp istr= "file://tests/data/nullmember.obj.txj";
+	ftsStart.update();
+	Txj_ t(istr);
+	string ostr= t.stringify();
+	Txj_& rbsid= t["2W2tzZxC0ufJ05Xp"];
+	ccp user= rbsid["user"];
+	Txj_& wpSub= rbsid["wpSub"];
+	Txj_& keys= wpSub["keys"];
+	Txj_* endpointP= &wpSub["endpoint"];
+	ccp endpoint= *endpointP;
+	Txj_ *p256dhP= &keys["p256dh"], *authKeP= &keys["auth"];
+	ccp p256dh= *p256dhP, authKe= *authKeP;
+	bool wpSubNull= !wpSub;
+	ftsEnd.update();
+	ftsDiff= ftsEnd-ftsStart;
+	cout<< "%TEST_FINISHED% in "<< ftsDiff<< "sec"<< endl;
+	cout<< "user: "<< user<< endl;
+	cout<< "wpSubNull: "<< wpSubNull<< endl;
+	cout<< "endpoint: "<< (void*)endpoint << endl;
+	cout<< "p256dh: "<< (void*)p256dh<< endl;
+	cout<< "authKe: "<< (void*)authKe<< endl;
+	cout<< "ostr: "<< ostr<< endl;
+	printMemUsage();
+	cout<< "Testing: user==gowtham && wpSub && !endpoint && !p256dh &&"
+		" !authKe"<< endl;
+	if (user && !strcmp(user, "gowtham") && wpSub && !endpoint && !p256dh &&
+		 !authKe) {
+		delete authKeP; delete p256dhP; delete endpointP;
+		cout<< "PASSED"<< endl<< endl;
+		return 1;
+	}
+	cout<< "FAILED"<< endl<< endl;
+	return 0;
+}
+
+int test32 () {
+	cout << "## 9. Entended array and multiline string test" << endl;
+	ccp istr= "file://tests/data/Employee.oob.txj";
+	ccp expectedBio= "He made JSON with multi line string and comments are "
+		"stringified only\nwhile saving the texject else they are dropped unless"
+		" printComment argument\nis set in stringify call.";
+	ftsStart.update();
+	Txj_ t(istr);
+	string ostr= t.stringify();
+	string name= (ccp)t["name"];
+	int cppScore= t["testScore"][0]["C++"];
+	int jsScore= t["testScore"][0]["Javascript"];
+	int lispScore= t["testScore"][0]["lisp"];
+	t["testScore"][0]["lisp"]= lispScore+1;
+	string biography= (ccp)t["biography"];
+	t.save();
+	t.init(istr);
+	int lispScore2= t["testScore"][0]["lisp"];
+	t["testScore"][0]["lisp"]= lispScore2-1;
+	t.save();
+	t.init(istr);
+	int lispScore3= t["testScore"][0]["lisp"];
+	t.save();
+	t["sports"][]= "tt"; //its already in set, so no effect! 
+	cout<< "Sports he play: "<< t["sports"]<< endl;
+	ftsEnd.update();
+	ftsDiff= ftsEnd-ftsStart;
+	cout<< "%TEST_FINISHED% in "<< ftsDiff<< "sec"<< endl;
+	cout<< "name: "<< name<< endl;
+	cout<< "biography: "<< biography<< endl;
+	cout<< "expectedBio: "<< expectedBio<< endl;
+	cout<< "cppScore: "<< cppScore<< endl;
+	cout<< "jsScore: "<< jsScore<< endl;
+	cout<< "lispScore: "<< lispScore<< endl;
+	cout<< "ostr: "<< ostr<< endl;
+	cout<< "lispScore2: "<< lispScore2<< endl;
+	cout<< "lispScore3: "<< lispScore3<< endl;
+	
+	printMemUsage();
+	cout<< "Testing: name==Gowtham && lispScore==7 && lispScore2==8 && "
+		"lispScore3==7 && biography==expectedBio"<< endl;
+	if (!name.empty() && !strcmp(name.c_str(), "Gowtham") && lispScore==6 &&
+		 lispScore2==7 && lispScore3==6 &&
+		 !strcmp(biography.c_str(), expectedBio)) {
+		cout<< "PASSED"<< endl<< endl;
+		return 1;
+	}
+	cout<< "FAILED"<< endl<< endl;
+	return 0;
+}
+
+int test33 () {
+	cout<< "## 10. one line create large array test"<< endl;
+	ftsStart.update();
+	Txj_ t;
+	t["a1"][667]["c8"]= 1;
+   cout<< "t[\"a1\"][666][\"c8\"]:"<< t["a1"][666]["c8"]<< endl;
+	cout<< "t[\"a1\"][667][\"c8\"]:"<< t["a1"][667]["c8"]<< endl;
+	ftsEnd.update();
+	ftsDiff= ftsEnd-ftsStart;
+	cout<< "%TEST_FINISHED% in "<< ftsDiff<< "sec"<< endl;
+	printMemUsage();
+	cout<< "Testing: !t[\"a1\"][666][\"c8\"] &&"
+		" t[\"a1\"][667][\"c8\"]==1"<< endl;
+	if (!t["a1"][666]["c8"] && (int)t["a1"][667]["c8"]==1) {
+		cout<< "PASSED"<< endl<< endl;
+		return 1;
+	}
+	cout<< "FAILED"<< endl<< endl;
+	return 0;
+}
+
+int test34 () {
+	cout<< "## 11. dup key test"<< endl;
+	ftsStart.update();
+	Txj_ t("{a:1, a:2}");
+   cout<< "t[\"a\"]: "<< t["a"]<< endl;
+	ftsEnd.update();
+	ftsDiff= ftsEnd-ftsStart;
+	cout<< "%TEST_FINISHED% in "<< ftsDiff<< "sec"<< endl;
+	printMemUsage();
+	cout<< "Testing: t[\"a\"]==2"<< endl;
+	if (2==(int)t["a"]) {
+		cout<< "PASSED"<< endl<< endl;
+		return 1;
+	}
+	cout<< "FAILED"<< endl<< endl;
+	return 0;
+}
+
+int test35 () {
+	cout<< "## 12. empty string, obj and array test"<< endl;
+	ccp cobj= "{}", carr= "[]", cvoid= "";
+	ftsStart.update();
+	Txj_ otxj(cobj), atxj(carr), vtxj(cvoid);
+	string ostr= otxj.prettyString();
+	string astr= atxj.prettyString();
+	string vstr= vtxj.prettyString();
+	cout<< "ostr: "<< ostr<< endl;
+	cout<< "astr: "<< astr<< endl;
+	cout<< "vstr: "<< vstr<< endl;
+	ftsEnd.update();
+	ftsDiff= ftsEnd-ftsStart;
+	cout<< "%TEST_FINISHED% in "<< ftsDiff<< "sec"<< endl;
+	printMemUsage();
+	cout<< "Testing: ostr=='{}' && astr=='[]' && vstr==\"\""<< endl;
+	if (!strcmp(ostr.c_str(), cobj) && !strcmp(astr.c_str(), carr) &&
+		 !strcmp(vstr.c_str(), cvoid)) {
+		cout<< "PASSED"<< endl<< endl;
+		return 1;
+	}
+	cout<< "FAILED"<< endl<< endl;
+	return 0;
+}
+
+int test36 () {
+	cout<< "## 13. char[] test" <<endl;
+	char un[48]= "gowtham";
+	ftsStart.update();
+ 	Txj_ fun;
+	fun= (ccp)un;
+	ccp cfun= (ccp)fun;
+	ftsEnd.update();
+   ftsDiff= ftsEnd-ftsStart;
+   cout<< "%TEST_FINISHED% in "<< ftsDiff<< "sec"<< endl;
+	cout<< "un: "<< un<< endl;
+	cout<< "cfun: "<< cfun<< endl;
+	printMemUsage();
+	cout<< "Testing: un==cfun"<< endl;
+	if (!strcmp(un, cfun)) {
+		cout<< "PASSED"<< endl<< endl;
+		return 1;
+	}
+	cout<< "FAILED"<< endl<< endl;
+	return 0;
+}
+
+int test37 () {
+	cout<< "## 14. table test"<< endl;
+	ccp istr= "file://tests/data/table.oob.txj";
+	ftsStart.update();
+	Txj_ t(istr);
+	string ostr= t.prettyString();
+	cout<< "ostr: "<< ostr<< endl;
+	int sal= t["EmployeeDetails"][0]["Salary"];
+	cout<< "t[\"EmployeeDetails\"][0][\"Salary\"]"<< sal<< endl;
+	ftsEnd.update();
+	ftsDiff= ftsEnd-ftsStart;
+	cout<< "%TEST_FINISHED% in "<< ftsDiff<< "sec"<< endl;
+	printMemUsage();
+	cout<< "Testing: t[\"EmployeeDetails\"][0][\"Salary\"]==5"<< endl;
+	if (sal==5) {
+		cout<< "PASSED"<< endl<< endl;
+		return 1;
+	}
+	cout<< "FAILED"<< endl<< endl;
+	return 0;
+}
+
+int test38 () {
+	cout<< "## 15. nested files links copy stringify test"<< endl;
+	ccp istr= "file://tests/data/red/users2.obj.txj";
+	ftsStart.update();
+	Txj_ r, t(istr);
+	Txj_& rt= r["necktwi"]["things"][0];
+	rt["id"]= t["necktwi"]["things"][0]["id"];
+	rt["user"]= &t["necktwi"]["things"][0]["user"]["name"];
+	string ostr= t.prettyString();
+	cout<< "ostr: "<< ostr<< endl;
+	string ostr2; rt.stringify(ostr2, true);
+	cout<< "ostr2: "<< ostr2<< endl;
+	ftsEnd.update();
+	ftsDiff= ftsEnd-ftsStart;
+	cout<< "%TEST_FINISHED% in "<< ftsDiff<< "sec"<< endl;
+	printMemUsage();
+	cout<< "Testing: rt[\"user\"]==Necktwi"<< endl;
+	if (!strcmp(rt["user"], "Necktwi")) {
+		cout<< "PASSED"<< endl<< endl;
+		return 1;
+	}
+	cout<< "FAILED"<< endl<< endl;
+	return 0;
+}
+
+int test39 () {
+	cout<< "## 16. comments test"<< endl;
+	ccp istr= "file://tests/data/comment.oob.txj";
+	ftsStart.update();
+	Txj_ t(istr);
+	string prettyTxj= t.prettyString();
+	cout<< "prettyTxj: "<< prettyTxj<< endl;
+	t.save();
+	cout<< "istr+7: "<< istr+7<< endl;
+	ifstream ifs(istr+7, ios::in);
+	string fStr;
+	if (ifs.is_open()) {
+		fStr.append((istreambuf_iterator<char>(ifs)),
+						  istreambuf_iterator<char>());
+		ifs.close();
+		cout<< "fStr: "<< endl<< fStr<< endl;
+	}
+	ftsEnd.update();
+	ftsDiff= ftsEnd-ftsStart;
+	cout<< "%TEST_FINISHED% in "<< ftsDiff<< "sec"<< endl;
+	printMemUsage();
+	cout<< "Testing: '#comment' should not exist in prettyTxj but should exist in fStr"<< endl;
+	if (!strstr(prettyTxj.c_str(), "#comment") &&
+		 strstr(fStr.c_str(), "#comment")) {
+		cout<< "PASSED"<< endl<< endl;
+		return 1;
+	}
+	cout<< "FAILED"<< endl<< endl;
+	return 0;
+}
+
+int test40 () {
+	cout<< "## 17. timestamp test"<< endl;
+	ftsStart.update();
+	ccp istr= "file://tests/data/empty.obj.txj";
+	Txj_ t(istr);
+	t.freeObj();
+	auto now= chrono::system_clock::now();
+	t["qC2VvW3jIYeMVg30"]["ts"]= now;
+	string prettyTxj= t.prettyString(false, true);
+	cout<< "prettyTxj: "<< prettyTxj<< endl;
+	now= chrono::system_clock::now();
+	t["qC2VvW3jIYeMVg30"]["ts"]= now;
+	prettyTxj= t.prettyString(false, true);
+	cout<< "prettyTxj: "<< prettyTxj<< endl;
+	t.save();
+	ftsEnd.update();
+	ftsDiff= ftsEnd-ftsStart;
+	cout<< "%TEST_FINISHED% in "<< ftsDiff<< "sec"<< endl;
+	printMemUsage();
+	cout<< "Testing: prettyTxj has (8)"<< endl;
+	if (strstr(prettyTxj.c_str(), "(8)")) {
+		cout<< "PASSED"<< endl<< endl;
+		return 1;
+	}
+	cout<< "FAILED"<< endl<< endl;
+	return 0;
+}
+
+int test41 () {
+	cout<< "## 18. table copy test"<< endl;
+	ccp istr= "file://tests/data/table.oob.txj";
+	ftsStart.update();
+	Txj_ t(istr);
+	Txj_ c(t);
+	string ostr= c.prettyString();
+	cout<< "ostr: "<< ostr<< endl;
+	int sal= c["EmployeeDetails"][0]["Salary"];
+	cout<< "c[\"EmployeeDetails\"][0][\"Salary\"]: "<< sal<< endl;
+	ftsEnd.update();
+	ftsDiff= ftsEnd-ftsStart;
+	cout<< "%TEST_FINISHED% in "<< ftsDiff<< "sec"<< endl;
+	printMemUsage();
+	cout<< "Testing: c[\"EmployeeDetails\"][0][\"Salary\"]==5"<< endl;
+	if (sal==5) {
+		cout<< "PASSED"<< endl<< endl;
+		return 1;
+	}
+	cout<< "FAILED"<< endl<< endl;
+	return 0;
+}
+
+int test42 () {
+	cout<< "## 19. malformed Texject crash test"<< endl;
+	ftsStart.update();
+	const char* cases[]= {
+		"",
+		"   \n\t  ",
+		"\n",
+		"1",
+		"null",
+		"nul",
+		"true",
+		"tru",
+		"false",
+		"!",
+		"?",
+		"^",
+		"delete",
+		"del",
+		"1 2",
+		"a: 1",
+		"a: 1,",
+		"a: 1,,",
+		"{}",
+		"[]",
+		"{} extra",
+		"}",
+		"]",
+		",",
+		"#",
+		"#comment",
+		"#comment\na: 1",
+		"{a: 1}",
+		"{a: 1,}",
+		"{,}",
+		"{,a: 1}",
+		"{a: 1,,b: 2}",
+		"{a: 1,,}",
+		"{a: 1, b: 2,,}",
+		"{a: 1,, b: 2}",
+		"{a: , b: 2}",
+		"{a: }",
+		"{a: ,}",
+		"[,]",
+		"[,1]",
+		"[1,]",
+		"[1,,2]",
+		"[1,,]",
+		"[, ,]",
+		"{a: 1",
+		"[1",
+		"{a: {b: 1",
+		"{a: [1, 2",
+		"{a: 1} }",
+		"[1] ]",
+		"{a: 1}\n{b: 2}",
+		"{a: 1} garbage",
+		"{a: ()}",
+		"{a: (0)xyz}",
+		"{a: (3)xy}",
+		"{a: (3)xy, b: 2}",
+		"{a: (9999)xy}",
+		"{a: (9999)xy, b: 2}",
+		"{a: (3)",
+		"{a: (3",
+		"{a: (-1)}",
+		"{a: (1)5, b: (1)x}",
+		"(3)abc",
+		"{a: \"unterminated}",
+		"{a: \"unterminated",
+		"{a: \"x\"}",
+		"{a: \"multi\nline\", b: 2}",
+		"{a: \"x\" \"y\"}",
+		"{a: \"x\" \"y\", b: 2}",
+		"{a: \"\"}",
+		"{a: 1.2.3}",
+		"{a: 1.2, b: 3}",
+		"{a: .5}",
+		"{a: 5.}",
+		"{a: 1e10}",
+		"{a: 0x10}",
+		"{a: -}",
+		"{a: +}",
+		"{a: --1}",
+		"{a: 20260101120000123456}",
+		"{a: 2026010112000012345}",
+		"{a: 202601011200001234567}",
+		"{#c, a: 1}",
+		"{a: 1, #c}",
+		"{a: 1, #c, b: 2}",
+		"{#}",
+		"{a: 1, #}",
+		"{\n#comment\na: 1\n}",
+		"{a: 1, #comment line\n, b: 2}",
+		"{a: [1, 2,]}",
+		"{a: [1, 2,]",
+		"{{}}",
+		"[[]]",
+		"{a: {}}",
+		"{a: []}",
+		"{}{}",
+		"[{} {}]",
+		"{a: 1, b: {c: 2,}} extra",
+		"{\"a\": 1}",
+		"{a: 1, \"a\": 2}",
+		"{1: 2}",
+		"{1.5: 2}",
+		"{-1: 2}",
+		"{+1: 2}",
+		"{a: (Time)}",
+		"{a: 1, b: 2} #trailing",
+		"{a: .b}",
+		"{a: .b, b: 1}",
+		"{:2}",
+		"{:}"
+	};
+	int n= (int)(sizeof(cases)/sizeof(cases[0]));
+	int crashes= 0;
+	for (int c= 0; c<n; ++c) {
+		cout<< "case "<< c<< ": `"<< cases[c]<< "`"<< endl;
+//		pid_t pid= fork();
+//		if (pid==0) {
+			Txj_ t;
+			t.init(cases[c]);
+			cout<< "  init ok"<< endl;
+			string s;
+			t.prettyString(s, false, true);
+			cout<< "  prettyString ok"<< endl;
+			Txj_ r;
+			r.init(s);
+			cout<< "  re-init ok"<< endl;
+//			_exit(0);
+//		}
+//		int st= 0;
+//		waitpid(pid, &st, 0);
+//		if (!WIFEXITED(st) || WEXITSTATUS(st)!=0) {
+//			++crashes;
+//			cout<< "  *** CRASHED *** status=0x"<< hex<< st<< dec<< endl;
+//			return 0;
+//		}
+	}
+	ftsEnd.update();
+	ftsDiff= ftsEnd-ftsStart;
+	cout<< "%TEST_FINISHED% in "<< ftsDiff<< "sec"<< endl;
+	printMemUsage();
+	cout<< "Testing: "<< n<<
+		 " malformed Texjects init/prettyString/re-init without crash"<< endl;
+	if (crashes) {
+		cout<< "crashes: "<< crashes<< endl;
+		cout<< "FAILED"<< endl<< endl;
+		return 0;
+	}
+	cout<< "PASSED"<< endl<< endl;
+	return 1;
+}
+
+int test43 () {
+	cout<< "## 20. shared ptr test"<< endl;
+	ftsStart.update();
+	TxjP_ t(new Txj_("7"));
+	cout<< "t: "<< t<< endl;
+	t->lockShared(); {
+		TxjP_ t1(t);
+		cout<< "t1: "<< t1<< endl;
+	}
+	t->lockShared(); {
+		TxjP_ t2(t);
+		cout<< "t2: "<< t2<< endl;
+	}
+	cout<< "t->lockShared() twice!"<< endl;
+	t->unlockShared();
+	t->unlockShared();
+	cout<< "t->unlockShared() should b twice!"<< endl;
+	t->lock();
+	//t->lock();
+	cout<< "t->lock() twice gives dead lock!"<< endl;
+	t->unlock();
+	cout<< "t: "<< t<< endl;
+	ftsEnd.update();
+	ftsDiff= ftsEnd-ftsStart;
+	cout<< "%TEST_FINISHED% in "<< ftsDiff<< "sec"<< endl;
+	printMemUsage();
+	cout<< "Testing: t==7"<< endl;
+	if (7==t) {
+		cout<< "PASSED"<< endl<< endl;
+		return 1;
+	}
+	cout<< "FAILED"<< endl<< endl;
+	return 0;
+}
+
+// ---------- thread-safety stress test ----------
+static unsigned long totalTxjs= 0;
+static unsigned long ptotalTxjs= 0;
+static mutex totalTxjsMtx;
+static uint64_t thrdTstMaxMem= 100000;
+static const int t41_MAX_MEMBERS= 7;
+static const int NUM_THREADS= 4;
+static Txj_::Locker_ thrdTstLkr;
+thread_local random_device t41_rd;
+thread_local mt19937_64 t41_rng{12345};
+
+static bool isCtnr (Txj_& t) {
+	switch (t.getType()) {
+	case Txj_::OBJ: case Txj_::ARRAY: case Txj_::ORDERED_OBJ:
+	case Txj_::SET_TYPE: case Txj_::UNDEFINED: case Txj_::NUL:
+		return true;
+	}
+	return false;
+}
+static bool noCntnrIn (Txj_* c) {
+	if (!isCtnr(*c))
+		return true;
+	Txj_::Iterator it= c->begin();
+	Txj_::Iterator end= c->end();
+	for (; it!=end; ++it) {
+		if (isCtnr(*it))
+			return false;
+	}
+	return true;
+}
+// true if target is root itself or anywhere in root's subtree
+static bool inSubtree (Txj_& root, Txj_& target) {
+	if (&root==&target)
+		return true;
+	if (!isCtnr(root))
+		return false;
+	root.lockShared();
+	Txj_::Iterator it= root.begin();
+	Txj_::Iterator end= root.end();
+	for (; it!=end; ++it)
+		if (inSubtree(*it, target)) {
+			root.unlockShared();
+			return true;
+		}
+	root.unlockShared();
+	return false;
+}
+
+static Txj_* makeLeaf () {
+	uniform_int_distribution<int> dist(0, 4);
+	int t= dist(t41_rng);
+	Txj_* p= new Txj_();
+	switch (t) {
+	case 0: *p= string("hello world"); break;
+	case 1: *p= (int)42; break;
+	case 2: *p= 3.14159; break;
+	case 3: *p= true; break;
+	case 4: {
+		uint8_t* d= (uint8_t*)malloc(8);
+		d[0]=1; d[1]=2; d[2]=3; d[3]=4;
+		d[4]=5; d[5]=6; d[6]=7; d[7]=8;
+		*p= Txj_::Blob_{d, 8};
+		break;}
+	}
+	return p;
+}
+static Txj_* insertIntoCntnr (Txj_& c, Txj_& child);
+
+static Txj_* makeContainer () {
+	uniform_int_distribution<int> dist(0, 3);
+	int t= dist(t41_rng);
+	Txj_* p= nullptr;
+	switch (t) {
+	case 0: p= new Txj_(Txj_::OBJ);
+		break;
+	case 1: p= new Txj_(Txj_::ARRAY);
+		break;
+	case 2: p= new Txj_(Txj_::SET_TYPE);
+		break;
+	default: p= new Txj_(Txj_::ORDERED_OBJ);
+		break;
+	}
+	return p;
+}
+static Txj_* insertIntoCntnr (Txj_& c, Txj_& child) {
+	bool isArr= c.isType(Txj_::ARRAY);
+	bool isSet= c.isType(Txj_::SET_TYPE);
+	if (isSet) {
+		auto n0= c.size;
+		Txj_& mem= c[];
+		mem= child;
+		if (c.size== n0)
+			return nullptr;
+		return &mem;
+	}
+	int kSfx= c.size;
+	string k= "k" + to_string(kSfx);
+	if (!isArr) {
+		while (c.find(k)!=c.end())
+			k= "k"+ to_string(++kSfx);
+	}
+	flDbg(TXJ_THRDTST, "%d: %s\n", tid, k.c_str());
+	Txj_& mem= isArr? c[c.size] : c[k];
+	mem= child;
+	return &mem;
+}
+
+static TxjP_ insertIntoCntnrNoLk (TxjP_& c, TxjP_& child);
+static TxjP_ insertIntoCntnrNoLk (TxjP_& c, TxjP_& child) {
+	bool isArr= c->isType(Txj_::ARRAY);
+	bool isSet= c->isType(Txj_::SET_TYPE);
+	if (isSet) {
+		auto n0= c->size;
+		TxjP_ mem= c[];
+		mem= child;
+		if (c->size== n0)
+			return TxjP_();
+		return mem;
+	}
+	int kSfx= c->size;
+	string k= "k" + to_string(kSfx);
+	if (!isArr) {
+		c->lockShared();
+		while (c->find(k)!=c->end())
+			k= "k"+ to_string(++kSfx);
+		c->unlockShared();
+	}
+	flDbg(TXJ_THRDTST, "%d: %s\n", tid, k.c_str());
+	TxjP_ mem= isArr? c[c->size] : c[k.c_str()];
+	mem= child;
+	return mem;
+}
+
+int numThreads= NUM_THREADS;
+Txj_ cntnr1;
+static void populateCntnr (int a) {
+	//printf("a: %d\n", a);
+	for (int i=0; i< thrdTstMaxMem/4/numThreads; ++i) {
+		flDbg(TXJ_THRDTST, "%d: %d", tid, i);
+		Txj_* pLf= makeLeaf();
+		for (int j=0; j<4; ++j) {
+//		for (int j=0; j<1; ++j) {
+			Txj_& c= cntnr1[j];
+			c.lock(thrdTstLkr);
+			insertIntoCntnr(c, *pLf);
+			c.unlock(thrdTstLkr);
+			totalTxjsMtx.lock();
+			++totalTxjs;
+			cout<< "\r"<< totalTxjs<< "\\"<< thrdTstMaxMem;
+			totalTxjsMtx.unlock();
+		}
+		delete pLf;
+	}
+}
+string fileProto= "file://";
+int test44 () {
+	cout << "## 21. 1 container thread safety stress test" << endl;
+	string cntnr1F= "tests/data/cntnr1.arr.txj";
+	{std::ofstream truncator(cntnr1F, std::ios::trunc);}
+	cntnr1.init(fileProto+cntnr1F);
+	cntnr1[0].init(Txj_::OBJ);
+	cntnr1[1].init(Txj_::ORDERED_OBJ);
+	cntnr1[2].init(Txj_::ARRAY);
+	cntnr1[3].init(Txj_::SET_TYPE);
+	totalTxjs= 0;
+	//thrdTstMaxMem= 4;
+	cout<< "ThreadCount: "<< numThreads<< ", ObjectCount: "<< thrdTstMaxMem<<
+		endl;
+	ftsStart.update();
+	ThreadPool tp(numThreads);
+	for (int i=0; i<numThreads; ++i)
+		tp.enqueue(populateCntnr);
+	tp.join();
+	ftsEnd.update();
+	cout<< endl;
+	ftsDiff= ftsEnd-ftsStart;
+   cout<< "%TEST_FINISHED% in "<< ftsDiff<< "sec"<< endl;
+	cntnr1.save();
+	cntnr1.freeObj();
+	cout<< "PASSED"<< endl<< endl;
+	return 1;
+}
+
+Txj_ wre;
+int written= 0;
+mutex prMtx;
+void writer (int tid) {
+	for (written= 0; written<thrdTstMaxMem; ++written) {
+		*TxjP_(&wre)["w"]= written;
+		//TxjP_ wp= TxjP_(&wre)["w"];
+		//wp= written;
+//		prMtx.lock();
+		cout<< "\033[uwriter: "<< written;
+//		prMtx.unlock();
+//		cout<< "writer: "<< written<< endl;
+		fflush(stdout);
+	}
+}
+void reader (int tid) {
+	int i= 0;
+	while (written< thrdTstMaxMem) {
+//		prMtx.lock();
+		cout<< "\033[u\033[1Breader: "<< ++i<< ": "<< TxjP_(&wre)["w"];
+//		prMtx.unlock();
+//		cout<< "reader: "<< ++i<< ": "<< TxjP_(&wre)["w"]<< endl;
+		fflush(stdout);
+	}
+}
+void eraser (int tid) {
+	int i= 0;
+	while (written< thrdTstMaxMem) {
+		wre.erase("w");
+//		prMtx.lock();
+		cout<< "\033[u\033[1B\033[1Beraser: "<< ++i;
+//		prMtx.unlock();
+//		cout<< "eraser: "<< ++i<< endl;
+		fflush(stdout);
+	}
+}
+int test45 () {
+	cout << "## 22. reader writer eraser thread test" << endl;
+	totalTxjs= 0;
+	//thrdTstMaxMem= 4;
+	cout<< "ThreadCount: "<< 3<< ", ObjectCount: "<< thrdTstMaxMem<< endl;
+	Txj_::refAcquire(&wre);
+	cout<< "\033[s";
+	cout<< endl<< endl<< endl;
+	ftsStart.update();
+	ThreadPool tp(3);
+	tp.enqueue(writer);
+	tp.enqueue(reader);
+	tp.enqueue(eraser);
+	tp.join();
+	ftsEnd.update();
+	cout<< endl;
+	ftsDiff= ftsEnd-ftsStart;
+   cout<< "%TEST_FINISHED% in "<< ftsDiff<< "sec"<< endl;
+	cout<< "PASSED"<< endl<< endl;
+	return 1;
+}
+
+// struct LkNd_ {
+// 	Txj_* tP= nullptr;
+// 	lkNd* child= nullptr;
+// 	lkNd* sb= nullptr;
+// };
+// LkNd_* lkndP= nullptr;
+// 	if (!*lLkNdP) {
+// 		c.lockShared(thrdTstLkr);
+// 		*lLkNdP= new LkNd_();
+// 		(*lkNdP)->tP= &c;
+// 	} else if (lLkNdP->tP != &c) {
+// 		LkNd_** l= &lLkNdP->sb;
+// 		while (*l && (*l)->sb!=&c) {
+// 			l= &l->sb;
+// 		}
+// 		if (!(*l && (*l)->sb)) {
+// 			c.lockShared(thrdTstLkr);
+// 			if (!*l) {
+// 				*l= new LkNd_();
+// 			}
+// 			(*l)->sb= &c;
+			
+// 		}
+// 	}
+static thread_local map<const Txj_*, int> t41_shDepth;
+static void t41_shLk (Txj_& c) {
+	auto n= ++t41_shDepth[&c];
+	flDbg(TXJ_THRDTST, "%d: SHL %p depth=%d", tid, &c, n);
+	if (n>1)
+		flDbg(TXJ_THRDTST, "%d: OVERSH %p depth=%d", tid, &c, n);
+	c.lockShared(thrdTstLkr);
+}
+static void t41_shUl (Txj_& c) {
+	auto n= t41_shDepth[&c];
+	flDbg(TXJ_THRDTST, "%d: SHU %p depth=%d", tid, &c, n);
+	if (n<1)
+		flDbg(TXJ_THRDTST, "%d: UNDSH %p depth=%d", tid, &c, n);
+	--t41_shDepth[&c];
+	c.unlockShared(thrdTstLkr);
+}
+static void t41_exLk (Txj_& c) {
+	if (t41_shDepth[&c]>0)
+		flDbg(TXJ_THRDTST, "%d: EXWITSH %p depth=%d DEADLOCK", tid,
+			&c, t41_shDepth[&c]);
+	c.lock(thrdTstLkr);
+}
+static void t41_exUl (Txj_& c) {
+	c.unlock(thrdTstLkr);
+}
+static Txj_* pkTxjFrmTr (
+	Txj_& c, bool container=false, bool onlyRoot=false, bool lock=false,
+	bool noLkC=false
+);
+Txj_* pkTxjFrmTr (
+	Txj_& c, bool container, bool onlyRoot, bool lock, bool noLkC
+) {
+	flDbg(TXJ_THRDTST, "%d: lockshared %p", tid, &c);
+	if (!noLkC) { if (lock) t41_exLk(c); else t41_shLk(c); }
+	if (c.size==0) {
+		if (onlyRoot)
+			return &nullTxj;
+		else
+			return &c;
+	}
+	uniform_int_distribution<int> d;
+	uniform_int_distribution<int> d2(0, 1);
+	Txj_* m= nullptr;
+	int skip;
+  randgen:
+	d= uniform_int_distribution<int>(0, c.size);
+	skip= d(t41_rng);
+	if (skip==c.size) {
+		if (onlyRoot) {
+			--skip;
+		} else 
+			return &c;
+	}
+	switch (c.getType()) {
+	case Txj_::ARRAY:
+		m= &(*c)[skip];break;
+	case Txj_::OBJ:
+	case Txj_::ORDERED_OBJ:
+	case Txj_::SET_TYPE: {
+		Txj_::Iterator it= c.begin();
+		Txj_::Iterator end= c.end();
+		for (int i= 0; i<skip && it!=end; ++it,++i) {}
+		if (it==end) {
+			if (!noLkC) { if (lock) t41_exUl(c); else t41_shUl(c); }
+			return nullptr;
+		}
+		m= &*it;
+	}}
+	if (isCtnr(*m)) {
+		if (!onlyRoot && d2(t41_rng)) {
+			Txj_* ptr= pkTxjFrmTr(*m, container, false, lock, noLkC);
+			if (ptr) {
+				m= ptr;
+			} else {
+				if (!noLkC) {if (lock) t41_exUl(c); else t41_shUl(c);}
+				return nullptr;
+			}
+		} else {
+			if (lock) {
+				flDbg(TXJ_THRDTST, "%d: lock %p", tid, m);
+				t41_exLk(*m);
+			} else {
+				flDbg(TXJ_THRDTST, "%d: lockShared %p", tid, m);
+				t41_shLk(*m);
+			}
+		}
+	} else {
+		if (container) {
+			if (onlyRoot) {
+				return &nullTxj;
+			} else {
+				return &c;
+			}
+		}
+		if (lock) {
+			flDbg(TXJ_THRDTST, "%d: lock %p", tid, m);
+			t41_exLk(*m);
+		} else {
+			flDbg(TXJ_THRDTST, "%d: lockShared %p", tid, m);
+			t41_shLk(*m);
+		}
+	}
+	flDbg(TXJ_THRDTST, "%d: unlockShared %p", tid, &c);
+	if (!noLkC) { if (lock) t41_exUl(c); else t41_shUl(c); }
+	return m;
+}
+static const char* t41_tn (Txj_& t) {
+	return Txj_::TXJ_EXT[t.getType()];
+}
+static uint64_t countNodes (Txj_& t) {
+	if (!isCtnr(t))
+		return 1;
+	uint64_t n= 1;
+	if (t.isType(Txj_::ARRAY)) {
+		for (unsigned i=0; i<t.size; ++i) {
+			Txj_& m= (*t)[i];
+			n+= isCtnr(m)? countNodes(m): 1;
+		}
+	} else {
+		t.lockShared();
+		Txj_::Iterator it= t.begin();
+		Txj_::Iterator end= t.end();
+		for (; it!=end; ++it)
+			n+= isCtnr(*it)? countNodes(*it): 1;
+		t.unlockShared();
+	}
+	return n;
+}
+static void ppltTr (int);
+static void ppltTrMask (int) {
+	try {
+		ppltTr(tid);
+	} catch (const exception& e) {
+		void* frames[64];
+		int n= backtrace(frames, 64);
+		char** strs= backtrace_symbols(frames, n);
+		printf("tid:%d worker exception: %s\n", tid, e.what());
+		for (int i=0; i<n; ++i)
+			printf("  %s\n", strs[i]);
+		throw;
+	}
+}
+static Txj_ ThrdTstTr;
+static void ppltTr (int) {
+	while (totalTxjs < thrdTstMaxMem) {
+		uniform_int_distribution<int> ad(0, 6);
+		int a;
+		TxjP_ c(pkTxjFrmTr(ThrdTstTr, true, false));
+		if (c.get()==nullptr) {
+			flDbg(TXJ_THRDTST, "%d: continue", tid);continue;
+		}
+	  pickOp:
+		a= ad(t41_rng);
+		if (c->size==6 && noCntnrIn(&*c)) {
+			flDbg(TXJ_THRDTST, "%d: unlockShared %p", tid, c);
+			t41_shUl(*c);
+			flDbg(TXJ_THRDTST, "%d: lock %p", tid, c);
+			t41_exLk(*c);
+			Txj_::TxjP_ nc(makeContainer());
+			Txj_* inst= insertIntoCntnr(*c, *nc);
+			if (inst) {
+				totalTxjsMtx.lock();
+				++totalTxjs;
+				printf(
+					"tid:%d inserted (%lld)%p<%s> in %p<%s(%d)>\n", tid,
+					(long long)totalTxjs, inst, t41_tn(*inst), &*c, t41_tn(*c),
+					c->size);
+				totalTxjsMtx.unlock();
+			}
+			flDbg(TXJ_THRDTST, "%d: unlock %p", tid, c);
+			t41_exUl(*c);
+		} else if (a <= 3 && c->size<7) {
+			flDbg(TXJ_THRDTST, "%d: insert", tid);
+			uniform_int_distribution<int> td(0, 1);
+			Txj_::TxjP_ pt;
+			if (td(t41_rng)) {
+				pt(makeLeaf());
+			} else {
+				pt(makeContainer());
+			}
+			flDbg(TXJ_THRDTST, "%d: unlockShared %p", tid, c);
+			t41_shUl(*c);
+			flDbg(TXJ_THRDTST, "%d: lock %p", tid, c);
+			t41_exLk(*c);
+			Txj_* inst= insertIntoCntnr(*c, *pt);
+			if (inst) {
+				totalTxjsMtx.lock();
+				++totalTxjs;
+				printf(
+					"tid:%d inserted (%lu)%p<%s> in %p<%s(%d)>\n", tid,
+					totalTxjs, inst, t41_tn(*inst), &*c, t41_tn(*c), c->size);
+				totalTxjsMtx.unlock();
+			}
+			flDbg(TXJ_THRDTST, "%d: unlock %p", tid, c);
+			t41_exUl(*c);
+		} else if (a <= 5 && c->size<7) {
+			flDbg(TXJ_THRDTST, "%d: copy", tid);
+			TxjP_ toBeCopied(pkTxjFrmTr(ThrdTstTr, false, false));
+			if (toBeCopied.get()==nullptr) {
+				flDbg(TXJ_THRDTST, "%d: unlocked %p", tid, c);
+				t41_shUl(*c);
+				flDbg(TXJ_THRDTST, "%d: copy continue", tid);continue;}
+			int cnt= 1;
+			if (isCtnr(*toBeCopied)) {
+				cnt= countNodes(*toBeCopied);
+				// if (cnt-1 > 7) {
+				// 	flDbg(TXJ_THRDTST, "%d: unlockshared %p", tid, toBeCopied);
+				// 	t41_shUl(*toBeCopied);
+				// 	flDbg(TXJ_THRDTST, "%d: unlocked %p", tid, c);
+				// 	t41_shUl(*c);
+				// 	flDbg(TXJ_THRDTST, "%d: copy continue", tid);continue;
+				// }
+			}
+			if (inSubtree(*toBeCopied, *c)) {
+				t41_shUl(*toBeCopied);
+				goto pickOp;
+			}
+			flDbg(TXJ_THRDTST, "%d: unlockShared %p", tid, c);
+			t41_shUl(*c);
+			flDbg(TXJ_THRDTST, "%d: lock %p", tid, c);
+			t41_exLk(*c);
+			Txj_* inst= insertIntoCntnr(*c, *toBeCopied);
+			if (inst) {
+				totalTxjsMtx.lock();
+				totalTxjs+= cnt;
+				printf(
+					"tid:%d copied %d/%lu %p<%s> to %p<%s(%d)>\n", tid, cnt,
+					totalTxjs, inst, t41_tn(*inst), &*c, t41_tn(*c),
+					c->size);
+				totalTxjsMtx.unlock();
+			}
+			flDbg(TXJ_THRDTST, "%d: unlock %p", tid, c);
+			t41_exUl(*c);
+			flDbg(TXJ_THRDTST, "%d: unlockShared %p", tid, toBeCopied);
+			t41_shUl(*toBeCopied);
+		} else {
+			flDbg(TXJ_THRDTST, "%d: delete", tid);
+			if (c->size <= numThreads+1 && totalTxjs>numThreads+1) {
+				t41_shUl(*c);
+				flDbg(TXJ_THRDTST, "%d: unlocked %p", tid, c);
+				flDbg(TXJ_THRDTST, "%d: repicking op", tid);
+				continue;
+			}
+			Txj_* d= pkTxjFrmTr(*c, true, true, true, true);
+			t41_shUl(*c);
+			flDbg(TXJ_THRDTST, "%d: unlocked %p", tid, c);
+			if (!d || d==&nullTxj) {
+				flDbg(TXJ_THRDTST, "%d: repicking op", tid);
+				continue;
+			}
+			if (d->size < numThreads+1) {
+				t41_exUl(*d);
+				flDbg(TXJ_THRDTST, "%d: unlocked %p", tid, d);
+				flDbg(TXJ_THRDTST, "%d: repicking op", tid);
+				continue;
+			}
+			Txj_* mem= pkTxjFrmTr(*d, false, true, false, true);
+			if (!mem || mem==&*d) {
+				t41_exUl(*d);
+				flDbg(TXJ_THRDTST, "%d: unlocked %p", tid, d);
+				flDbg(TXJ_THRDTST, "%d: repicking op", tid);
+				continue;
+			}
+			int cnt= countNodes(*mem);
+			flDbg(TXJ_THRDTST, "%d: unlockShared %p", tid, mem);
+			t41_shUl(*mem);
+			if (cnt>7 || ptotalTxjs>=totalTxjs-cnt) {
+				t41_exUl(*d);
+				flDbg(TXJ_THRDTST, "%d: unlocked %p", tid, d);
+				flDbg(TXJ_THRDTST, "%d: repicking op", tid);
+				continue;
+			}
+			ccp memT= t41_tn(*mem);
+			bool erased= d->erase(mem);
+			if (erased) {
+				totalTxjsMtx.lock();
+				totalTxjs-= cnt;
+				ptotalTxjs= totalTxjs;
+				printf(
+					"tid:%d deleted %d:%lu %p<%s> from %p<%s(%d)>\n", tid, cnt,
+					totalTxjs, mem, memT, d, t41_tn(*d), d->size);
+				totalTxjsMtx.unlock();
+			}
+			flDbg(TXJ_THRDTST, "%d: unlock %p", tid, d);
+			t41_exUl(*d);
+		}
+	}
+}
+static TxjP_ pkTxjFrmTrNoLk (
+	TxjP_& c, bool container=false, bool onlyRoot=false
+);
+TxjP_ pkTxjFrmTrNoLk (TxjP_& c, bool container, bool onlyRoot) {
+	if (c->size==0) {
+		if (onlyRoot)
+			return TxjP_(&nullTxj);
+		else
+			return c;
+	}
+	uniform_int_distribution<int> d;
+	uniform_int_distribution<int> d2(0, 1);
+	int skip;
+	d= uniform_int_distribution<int>(0, c->size);
+	skip= d(t41_rng);
+	if (skip==c->size) {
+		if (onlyRoot)
+			--skip;
+		else
+			return c;
+	}
+	auto pick= [&]() -> TxjP_ {
+		if (c->getType()==Txj_::ARRAY)
+			return c[skip];
+		c->lockShared();
+		Txj_* m= nullptr;
+		Txj_::Iterator it= c->begin();
+		Txj_::Iterator end= c->end();
+		for (int i= 0; i<skip && it!=end; ++it,++i) {}
+		if (it!=end)
+			m= &*it;
+		TxjP_ tmp(m);
+		c->unlockShared();
+		return tmp;
+	};
+	TxjP_ mp= pick();
+	if (mp.get()==nullptr)
+		return TxjP_();
+	if (isCtnr(*mp)) {
+		if (!onlyRoot && d2(t41_rng)) {
+			TxjP_ ptr= pkTxjFrmTrNoLk(mp, container, false);
+			if (ptr.get()) {
+				return ptr;
+			} else {
+				return TxjP_();
+			}
+		}
+	} else {
+		if (container) {
+			if (onlyRoot) {
+				return TxjP_(&nullTxj);
+			} else {
+				return c;
+			}
+		}
+	}
+	return mp;
+}
+static void ppltTrNoLk (int) {
+	TxjP_ root(&ThrdTstTr);
+	while (totalTxjs < thrdTstMaxMem) {
+		uniform_int_distribution<int> ad(0, 10);
+		int a;
+		TxjP_ c= pkTxjFrmTrNoLk(root, true, false);
+//		c->lock(thrdTstLkr);
+		if (c.get()==nullptr) {
+//			c->unlock(thrdTstLkr);
+			flDbg(TXJ_THRDTST, "%d: continue", tid);continue;
+		}
+	  pickOp:
+		a= ad(t41_rng);
+		if (c->size==6 && noCntnrIn(&*c)) {
+			TxjP_ nc(makeContainer());
+			TxjP_ inst= insertIntoCntnrNoLk(c, nc);
+			if (inst) {
+				totalTxjsMtx.lock();
+				++totalTxjs;
+				printf(
+					"tid:%d inserted (%lld)%p<%s> in %p<%s(%d)>\n", tid,
+					(long long)totalTxjs, inst.get(), t41_tn(*inst), &*c,
+					t41_tn(*c), c->size);
+				totalTxjsMtx.unlock();
+			}
+		} else if (a <= 4 && c->size<7) {
+			uniform_int_distribution<int> td(0, 1);
+			TxjP_ pt;
+			if (td(t41_rng)) {
+				pt(makeLeaf());
+			} else {
+				pt(makeContainer());
+			}
+			TxjP_ inst= insertIntoCntnrNoLk(c, pt);
+			if (inst) {
+				totalTxjsMtx.lock();
+				++totalTxjs;
+				printf(
+					"tid:%d inserted (%lu)%p<%s> in %p<%s(%d)>\n", tid,
+					totalTxjs, inst.get(), t41_tn(*inst), &*c, t41_tn(*c), c->size);
+				totalTxjsMtx.unlock();
+			}
+		} else if (a <= 9 && c->size<7) {
+			TxjP_ toBeCopied= pkTxjFrmTrNoLk(root, false, false);
+			if (toBeCopied.get()==nullptr) {
+//				c->unlock(thrdTstLkr);
+				continue;
+			}
+			int cnt= 1;
+			bool cpyIsNtSrc= &*toBeCopied != &*c;
+			if (cpyIsNtSrc) toBeCopied->lockShared(thrdTstLkr);
+			if (isCtnr(*toBeCopied)) {
+				cnt= countNodes(*toBeCopied);
+				// if (cnt-1 > 7) {
+				// 	toBeCopied->unlockShared();
+				// 	goto pickOp;
+				// }
+			}
+			if (inSubtree(*toBeCopied, *c)) {
+				if (cpyIsNtSrc) toBeCopied->unlockShared(thrdTstLkr);
+				goto pickOp;
+			}
+			TxjP_ inst= insertIntoCntnrNoLk(c, toBeCopied);
+			if (cpyIsNtSrc) toBeCopied->unlockShared(thrdTstLkr);
+			if (inst) {
+				totalTxjsMtx.lock();
+				totalTxjs+= cnt;
+				printf(
+					"tid:%d copied %d/%lu %p<%s> to %p<%s(%d)>\n", tid, cnt,
+					totalTxjs, inst.get(), t41_tn(*inst), &*c, t41_tn(*c),
+					c->size);
+				totalTxjsMtx.unlock();
+			}
+		} else {
+			if (c->size <= numThreads+1 && totalTxjs>numThreads+1) {
+//				c->unlock(thrdTstLkr);
+				continue;
+			}
+			TxjP_ d= pkTxjFrmTrNoLk(c, true, true);
+			if (!d || d.get()==&nullTxj) {
+//				c->unlock(thrdTstLkr);
+				continue;
+			}
+			if (d->size < numThreads+1) {
+//				c->unlock(thrdTstLkr);
+				continue;
+			}
+			TxjP_ mem= pkTxjFrmTrNoLk(d, false, true);
+			if (!mem || mem.get()==&*d) {
+//				c->unlock(thrdTstLkr);
+				continue;
+			}
+			int cnt= countNodes(*mem);
+			if (cnt>7 || ptotalTxjs>=totalTxjs-cnt) {
+//				c->unlock(thrdTstLkr);
+				continue;
+			}
+			Txj_* mp= mem.get();
+			ccp memT= t41_tn(*mem);
+			bool erased= d->erase(mp);
+			if (erased) {
+				totalTxjsMtx.lock();
+				totalTxjs-= cnt;
+				ptotalTxjs= totalTxjs;
+				totalTxjsMtx.unlock();
+				printf(
+					"tid:%d deleted %d:%lu %p<%s> from %p<%s(%d)>\n", tid, cnt,
+					totalTxjs, mp, memT, d.get(), t41_tn(*d), d->size);
+			}
+		}
+//		c->unlock(thrdTstLkr);
+	}
+}
+static Txj_ *g_keepAlive[5];
+static int testOOBLeak () {
+	cout << "## OOB leak deterministic test" << endl;
+	int N= 5;
+	for (int i=0; i<N; ++i) {
+		Txj_ *src= new Txj_(Txj_::ORDERED_OBJ);
+		Txj_::TxjP_ spts(src);
+		printf("A: created standalone ORDERED_OBJ src=%p\n",
+			(void*)src);
+	}
+	for (int i=0; i<N; ++i) {
+		Txj_ c(Txj_::OBJ);
+		Txj_ *src= new Txj_(Txj_::ORDERED_OBJ);
+		Txj_::TxjP_ spts(src);
+		Txj_& mem= c["k"];
+		mem= *spts;
+		printf("B: dest=%p src=%p\n", (void*)&mem, (void*)src);
+	}
+	for (int i=0; i<N; ++i) {
+		Txj_ *src= new Txj_(Txj_::ORDERED_OBJ);
+		delete src;
+		printf("A3: deleted standalone ORDERED_OBJ\n");
+	}
+	for (int i=0; i<N; ++i) {
+		Txj_ *c= new Txj_(Txj_::OBJ);
+		g_keepAlive[i]= c;
+		Txj_ *src= new Txj_(Txj_::ORDERED_OBJ);
+		Txj_::TxjP_ spts(src);
+		Txj_& mem= (*c)["k"];
+		mem= *spts;
+		printf("B2: dest=%p src=%p\n", (void*)&mem, (void*)src);
+	}
+	for (int i=0; i<N; ++i) {
+		Txj_ c(Txj_::OBJ);
+		Txj_ *src= new Txj_(Txj_::ORDERED_OBJ);
+		(*src)["x"]= 1;
+		Txj_::TxjP_ spts(src);
+		Txj_& mem= c["k"];
+		mem= *spts;
+		printf("B3: nonempty dest=%p src=%p\n", (void*)&mem, (void*)src);
+	}
+	printf("OOB leak test done\n");
+	return 1;
+}
+int test46 () {
+	cout << "## 23. tree thread safety stress test" << endl;
+	totalTxjs= 0;
+	string ThrdTstTrF= "tests/data/ThrdTstTr.obj.txj";
+	{std::ofstream truncator(ThrdTstTrF, std::ios::trunc);}
+	ThrdTstTr.init(fileProto+ThrdTstTrF);
+	cout<< "ThreadCount: "<< numThreads<< ", ObjectCount: "<< thrdTstMaxMem<<
+		endl;
+	ftsStart.update();
+	Txj_::refAcquire(&ThrdTstTr);
+	ThreadPool tp(numThreads);
+	for (int i=0; i<numThreads; ++i)
+		tp.enqueue(ppltTr);
+	tp.join();
+	ftsEnd.update();
+	ftsDiff= ftsEnd-ftsStart;
+   cout<< "%TEST_FINISHED% in "<< ftsDiff<< "sec"<< endl;
+	
+	cout<< "Saving thrdTstTr"<< endl;
+	ftsStart.update();
+	ThrdTstTr.save();
+	ftsEnd.update();
+	ftsDiff= ftsEnd-ftsStart;
+   cout<< "%TEST_FINISHED% in "<< ftsDiff<< "sec"<< endl;
+
+	ThrdTstTr.freeObj();
+	cout<< "PASSED"<< endl<< endl;
+	return 1;
+}
+int test47 () {
+	cout << "## 24. bin test" << endl;
+	Txj_ t("file://tests/data/config2.obj.txj");
+	ftsStart.update();
+	cout<< t<< endl;
+	t.save();
+	ftsEnd.update();
+	ftsDiff= ftsEnd-ftsStart;
+   cout<< "%TEST_FINISHED% in "<< ftsDiff<< "sec"<< endl;
+	cout<< "PASSED"<< endl<< endl;
+	return 1;
+}
+
+int test48 () {
+	cout << "## 25. tree thread safety stress test (no test locks)" << endl;
+	totalTxjs= 0;
+	string ThrdTstTrF= "tests/data/ThrdTstTr.obj.txj";
+	{std::ofstream truncator(ThrdTstTrF, std::ios::trunc);}
+	ThrdTstTr.init(fileProto+ThrdTstTrF);
+	thrdTstMaxMem= 10000;
+	cout<< "ThreadCount: "<< numThreads<< ", ObjectCount: "<< thrdTstMaxMem<< endl;
+	ftsStart.update();
+	Txj_::refAcquire(&ThrdTstTr);
+	ThreadPool tp(numThreads);
+	for (int i= 0; i<numThreads; ++i)
+		tp.enqueue(ppltTrNoLk);
+	tp.join();
+	ftsEnd.update();
+	ftsDiff= ftsEnd-ftsStart;
+	cout<< "%TEST_FINISHED% in "<< ftsDiff<< "sec"<< endl;
+
+	// cout<< "Saving thrdTstTr"<< endl;
+	// ftsStart.update();
+	// ThrdTstTr.save();
+	// ftsEnd.update();
+	// ftsDiff= ftsEnd-ftsStart;
+	// cout<< "%SAVE_FINISHED% in "<< ftsDiff<< "sec"<< endl;
+
+	printMemUsage();
+	ThrdTstTr.freeObj();
+	cout<< "PASSED"<< endl<< endl;
+	return 1;
+}
+
+int main (int argc, char** argv) {
+	cout<< "%SUITE_STARTING% TestTxj"<< endl;
+	cout<< "%SUITE_STARTED%"<< endl;
+
+	FerryTimeStamp ftsSuiteStart;
+	FerryTimeStamp ftsSuiteEnd;
+	ftsSuiteStart.update();
+	if (getenv("TXJ_OOBLEAK")) {
+		testOOBLeak();
+		cout<< "OOB leak mode done"<< endl;
+		return EXIT_SUCCESS;
+	}
+
+/*
+   cout << "%TEST_STARTED% test1 (TestTxj)" << endl;
+   ftsStart.update();
+   test1();
+   ftsEnd.update();
+   ftsDiff = ftsEnd-ftsStart;
+   cout << "%TEST_FINISHED% time=" << ftsDiff <<
+      " test1 (TestTxj)" << endl;
+
+   cout << "%TEST_STARTED% test2 (TestTxj)\n" << endl;
+   ftsStart.update();
+   test2();
+   ftsEnd.update();
+   ftsDiff = ftsEnd-ftsStart;
+   cout << "%TEST_FINISHED% time=" << ftsDiff << " test2 (TestTxj)" << endl;
+   
+   cout << "%TEST_STARTED% test3 (TestTxj)\n" << endl;
+   ftsStart.update();
+   test3();
+   ftsEnd.update();
+   ftsDiff = ftsEnd-ftsStart;
+   cout << "%TEST_FINISHED% time=" << ftsDiff << " test3 " << endl;
+
+   cout << "%TEST_STARTED% test4 (TestTxj)\n" << endl;
+   ftsStart.update();
+   test4();
+   ftsEnd.update();
+   ftsDiff = ftsEnd-ftsStart;
+   cout << "%TEST_FINISHED% time=" << ftsDiff << " test4 " << endl;
+
+   cout << "%TEST_STARTED% test5 (TestTxj)\n" << endl;
+   ftsStart.update();
+   test5();
+   ftsEnd.update();
+   ftsDiff = ftsEnd-ftsStart;
+   cout << "%TEST_FINISHED% time=" << ftsDiff << " test5 " << endl;
+   
+   cout << "%TEST_STARTED% test6 (TestTxj)\n" << endl;
+   ftsStart.update();
+   test6();
+   ftsEnd.update();
+   ftsDiff = ftsEnd-ftsStart;
+   cout << "%TEST_FINISHED% time=" << ftsDiff << " test6 " << endl;
+
+   cout << "%TEST_STARTED% test7 (TestTxj)\n" << endl;
+   ftsStart.update();
+   test7();
+   ftsEnd.update();
+   ftsDiff = ftsEnd-ftsStart;
+   cout << "%TEST_FINISHED% time=" << ftsDiff << " test7 " << endl;
+
+   cout << "%TEST_STARTED% test8 (TestTxj)\n" << endl;
+   ftsStart.update();
+   test8();
+   ftsEnd.update();
+   ftsDiff= ftsEnd-ftsStart;
+   cout << "%TEST_FINISHED% time=" << ftsDiff << " test8 " << endl;
+
+   cout << "%TEST_STARTED% test9\n" << endl;
+   ftsStart.update();
+   test9();
+   ftsEnd.update();
+   ftsDiff = ftsEnd-ftsStart;
+   cout << "%TEST_FINISHED% time=" << ftsDiff << " test9 " << endl;
+   
+   cout << "%TEST_STARTED% test10\n" << endl;
+   ftsStart.update();
+   test10();
+   ftsEnd.update();
+   ftsDiff = ftsEnd-ftsStart;
+   cout << "%TEST_FINISHED% time=" << ftsDiff << " test10 " << endl;
+
+   cout << "%TEST_STARTED% test11\n" << endl;
+   ftsStart.update();
+   test11();
+   ftsEnd.update();
+   ftsDiff = ftsEnd-ftsStart;
+   cout << "%TEST_FINISHED% time=" << ftsDiff << " test11 " << endl;
+
+   cout << "%TEST_STARTED% test12\n" << endl;
+   ftsStart.update();
+   test12();
+   ftsEnd.update();
+   ftsDiff = ftsEnd - ftsStart;
+   cout << "%TEST_FINISHED% time=" << ftsDiff << " test12 " << endl;
+
+   cout << "%TEST_STARTED% test13\n" << endl;
+   ftsStart.update();
+   test13();
+   ftsEnd.update();
+   ftsDiff = ftsEnd - ftsStart;
+   cout << "%TEST_FINISHED% time=" << ftsDiff << " test13 " << endl;
+
+   cout << "%TEST_STARTED% test15\n" << endl;
+   ftsStart.update();
+   test15();
+   ftsEnd.update();
+   ftsDiff = ftsEnd - ftsStart;
+   cout << "%TEST_FINISHED% time=" << ftsDiff << " test15 " << endl;
+
+   cout << "%TEST_STARTED% test16" << endl;
+   ftsStart.update();
+   test16();
+   ftsEnd.update();
+   ftsDiff = ftsEnd - ftsStart;
+   cout << "%TEST_FINISHED% time=" << ftsDiff << " test16\n" << endl;
+
+   cout << "%TEST_STARTED% test17" << endl;
+   ftsStart.update();
+   test17();
+   ftsEnd.update();
+   ftsDiff = ftsEnd - ftsStart;
+   cout << "%TEST_FINISHED% time=" << ftsDiff << " test17\n" << endl;
+
+   cout << "%TEST_STARTED% test18" << endl;
+   ftsStart.update();
+   test18();
+   ftsEnd.update();
+   ftsDiff = ftsEnd - ftsStart;
+   cout << "%TEST_FINISHED% time=" << ftsDiff << " test18\n" << endl;
+
+   cout << "%TEST_STARTED% test19" << endl;
+   ftsStart.update();
+   test19();
+   ftsEnd.update();
+   ftsDiff = ftsEnd - ftsStart;
+   cout << "%TEST_FINISHED% time=" << ftsDiff << " test19\n" << endl;
+
+   cout << "%TEST_STARTED% test20" << endl;
+   ftsStart.update();
+   test20();
+   ftsEnd.update();
+   ftsDiff = ftsEnd - ftsStart;
+   cout << "%TEST_FINISHED% time=" << ftsDiff << " test20\n" << endl;
+  
+   cout << "%TEST_STARTED% test21" << endl;
+   ftsStart.update();
+   test21();
+   ftsEnd.update();
+   ftsDiff = ftsEnd - ftsStart;
+   cout << "%TEST_FINISHED% time=" << ftsDiff << " test21\n" << endl;
+
+   cout << "%TEST_STARTED% test22" << endl;
+   ftsStart.update();
+   test22();
+   ftsEnd.update();
+   ftsDiff = ftsEnd - ftsStart;
+   cout << "%TEST_FINISHED% time=" << ftsDiff << " test22" << endl;
+*/
+	int pc= 0, tc=0;
+	printMemUsage(); cout<< endl;
+
+//	++tc; pc+= test24();
+//	++tc; pc+= test25();
+//	++tc; pc+= test26();
+//	++tc; pc+= test27();
+//	++tc; pc+= test28();
+//	++tc; pc+= test29();
+//	++tc; pc+= test30();
+//	++tc; pc+= test31();
+//	++tc; pc+= test32();
+//	++tc; pc+= test33();
+//	++tc; pc+= test34();
+//	++tc; pc+= test35();
+//	++tc; pc+= test36();
+//	++tc; pc+= test37();
+//	++tc; pc+= test38();
+//	++tc; pc+= test39();
+//	++tc; pc+= test40();
+//	++tc; pc+= test41();
+//	++tc; pc+= test42();
+//	++tc; pc+= test43();
+//	++tc; pc+= test47();
+//	numThreads= 1;
+//	++tc; pc+= test44();
+//	numThreads= NUM_THREADS;
+//	++tc; pc+= test44();
+//	++tc; pc+= test45();
+//	numThreads= 1;
+//	++tc; pc+= test46();
+	numThreads= NUM_THREADS;
+//	++tc; pc+= test46();
+	++tc; pc+= test48();
+
+	ftsSuiteEnd.update();
+   ftsDiff= ftsSuiteEnd-ftsSuiteStart;
+   cout<< "%SUITE_FINISHED% time="<< ftsDiff<< "sec"<< endl;
+	cout<< "TotalPassed: "<< pc<< "/"<< tc<< endl;
+
+   return (EXIT_SUCCESS);
+}

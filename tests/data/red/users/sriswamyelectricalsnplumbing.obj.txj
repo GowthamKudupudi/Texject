@@ -1,0 +1,76 @@
+inactive: false,
+email: "sivajikudupudimvsc@gmail.com",
+name: "SriSwamyElectricalsNPlumbing",
+things: [
+	{
+		id: 1,
+		user: sriswamyelectricalsnplumbing,
+		pics: [
+			{
+				ts: 1786011696907
+			}
+		],
+		name: "Softline ac stabilizer ",
+		location: [
+			16.994940,
+			82.242644
+		],
+		details: "Wall 49",
+		lastModed: 1786011702147
+	},
+	{
+		id: 2,
+		user: sriswamyelectricalsnplumbing,
+		pics: [
+			{
+				ts: 1786021401470
+			}
+		],
+		name: "Orient electric wall mount fan",
+		location: [
+			16.994940,
+			82.242644
+		],
+		details: "Wall 49 ",
+		lastModed: 1786021404189
+	},
+	{
+		id: 3,
+		user: sriswamyelectricalsnplumbing,
+		pics: [
+			{
+				ts: 1786003937733
+			}
+		],
+		name: "Logitech wireless bluetooth keyboard ",
+		location: [
+			16.994940,
+			82.242644
+		],
+		lastModed: 1786003969389
+	},
+	{
+		name: "Philips Led color wifi bulb 12W",
+		id: 4,
+		user: sriswamyelectricalsnplumbing,
+		location: [
+			16.994940,
+			82.242644
+		],
+		lastModed: 1786180025261,
+		pics: [
+			{
+				ts: 1786015213944
+			},
+			{
+				ts: 1786178836553
+			}
+		]
+	}
+],
+smsgs: [
+],
+reps: [
+],
+lmts: 1785899638651,
+bid: "x6U53FwOgszYaDS4"

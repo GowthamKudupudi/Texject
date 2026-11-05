@@ -1,0 +1,26 @@
+inactive: false,
+email: "lsvprasadkada@gmail.com",
+name: "RaviAquaNPets",
+things: [
+	{
+		id: 1,
+		user: raviaquanpets,
+		pics: [
+			{
+				ts: 1785479970107
+			}
+		],
+		name: "Arowana fish",
+		location: [
+			16.964187,
+			82.2297854
+		],
+		lastModed: 1785480040728
+	}
+],
+smsgs: [
+],
+reps: [
+],
+lmts: 1785479913967,
+bid: "5jmXuE4FBeaFjA2u"

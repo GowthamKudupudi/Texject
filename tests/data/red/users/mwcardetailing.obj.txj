@@ -1,0 +1,36 @@
+inactive: false,
+email: "j\\ë-ß",
+name: "MWCarDetailing",
+things: [
+	{
+		id: 1,
+		user: mwcardetailing,
+		pics: [
+			{
+				ts: 1764416118058
+			}
+		],
+		name: "70mai DashCam A510",
+		location: [
+			12.9797867,
+			77.757444
+		],
+		lastModed: 1764424280640,
+		rmsgs: [
+			{
+				id: 1,
+				user: "krish",
+				msg: "is it available",
+				ts: 1784541486023,
+				new: true,
+				smind: 0
+			}
+		]
+	}
+],
+smsgs: [
+],
+reps: [
+],
+lmts: 1784541486023,
+bid: "2SntvlaBPyWGr4rN"

@@ -1,0 +1,44 @@
+inactive: false,
+email: "praveen.kada04@gmail.com",
+name: "SriRaviAquaMart",
+things: [
+	{
+		id: 1,
+		user: sriraviaquamart,
+		pics: [
+			{
+				ts: 1786629216556
+			}
+		],
+		name: "Green Zebra Fish",
+		location: [
+			16.9982907,
+			82.2439648
+		],
+		lastModed: 1786629241883,
+		rmsgs: [
+			{
+				id: 1,
+				user: "gowtham",
+				msg: "
+					How much
+					
+				",
+				ts: 1786629323512,
+				smind: 56,
+				rep: "50"
+			}
+		]
+	}
+],
+smsgs: [
+	[
+		"",
+		1,
+		1
+	]
+],
+reps: [
+],
+lmts: 1786629323512,
+bid: "GqOXsAFGan71ob5Q"

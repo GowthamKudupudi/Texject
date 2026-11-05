@@ -1,0 +1,6 @@
+EmployeeAttributes: [
+	"EmpId", "Name",    "Salary"
+],
+EmployeeDetails: [[
+	      1, "Gowtham",      5.5
+]] | [EmployeeAttributes]

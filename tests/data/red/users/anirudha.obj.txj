@@ -1,0 +1,23 @@
+id: 3,
+inactive: false,
+email: "ruddha.mine@gmail.com",
+password: "275876e34cf609db118f3d84b799a790",
+activationKey: "nTLsXVynnqINp3wd",
+name: "anirudha",
+things: [
+],
+smsgs: [
+	[
+		"gowtham",
+		1,
+		7
+	],
+	[
+		"gowtham",
+		1,
+		8
+	]
+],
+reps: [
+],
+bid: "ga2W0B6TeICwEEIq"

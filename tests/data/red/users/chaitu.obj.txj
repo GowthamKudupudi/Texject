@@ -1,0 +1,96 @@
+id: 4,
+inactive: false,
+password: "1bd367630f9a8c495278edf54fbfe5a2",
+activationKey: "f0MpVkU6ubf75Vtv",
+email: "chaitanya50005@gmail.com",
+things: [
+	{
+		id: 1,
+		user: chaitu,
+		pics: [
+			{
+				ts: 1749908482121
+			}
+		],
+		name: "Brown Bottle",
+		location: [
+			17.4267115,
+			78.5531901
+		],
+		details: "Water Bottle",
+		rmsgs: [
+			{
+				id: 1,
+				user: "gowtham",
+				msg: "entra idhi",
+				ts: 1749908048672,
+				smind: 9,
+				rep: "ade variety "
+			},
+			{
+				id: 2,
+				user: "kishan",
+				msg: "change the name to bottle",
+				ts: 1749938223950,
+				smind: 0
+			},
+			{
+				id: 3,
+				user: "gowtham",
+				msg: "good boy",
+				ts: 1750082666639,
+				smind: 10,
+				rep: "changed bottle name"
+			},
+			{
+				id: 4,
+				user: "gowtham",
+				msg: "Good ",
+				ts: 1750568155524,
+				new: true,
+				smind: 11
+			},
+			{
+				id: 5,
+				user: "gowtham",
+				msg: "helloo",
+				ts: 1754405356367,
+				new: true,
+				smind: 37
+			}
+		]
+	},
+	{
+		id: 2,
+		user: chaitu,
+		pics: [
+			{
+				ts: 1750565649347
+			}
+		],
+		name: "Nissan Magnite Car",
+		location: [
+			17.4266464,
+			78.5532253
+		],
+		details: "Brown Colour . Alloy wheels "
+	}
+],
+newpassword: false,
+name: "Chaitu",
+smsgs: [
+	[
+		"",
+		1,
+		1
+	],
+	[
+		"",
+		1,
+		3
+	]
+],
+reps: [
+],
+bid: "7HsahVuwyK9MJSGx",
+lmts: 1754405356367

@@ -1,0 +1,27 @@
+inactive: false,
+email: "kamala.chintakula@gmail.com",
+name: "KamalaDevi",
+things: [
+	{
+		id: 1,
+		user: kamaladevi,
+		pics: [
+			{
+				ts: 1786263209676
+			}
+		],
+		name: "LG CD DVD player surround speaker sound system",
+		location: [
+			17.0029492,
+			82.2533006
+		],
+		details: "5.1",
+		lastModed: 1786263438538
+	}
+],
+smsgs: [
+],
+reps: [
+],
+lmts: 1786263089032,
+bid: "jsktluq1L197P90N"

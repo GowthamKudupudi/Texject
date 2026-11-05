@@ -76,7 +76,7 @@ if (macOS)
 endif()   
 
 if (DEFINED _DEBUG)
-#   set (GCC_COVERAGE_COMPILE_FLAGS "${GCC_COVERAGE_COMPILE_FLAGS} -fsanitize=address -g -O0 -fno-omit-frame-pointer")
+   set (GCC_COVERAGE_COMPILE_FLAGS "${GCC_COVERAGE_COMPILE_FLAGS} -fsanitize=address -g -O0 -fno-omit-frame-pointer")
    set (GCC_COVERAGE_COMPILE_FLAGS "${GCC_COVERAGE_COMPILE_FLAGS} -g -O0")
 endif ()
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GCC_COVERAGE_COMPILE_FLAGS} -Wno-changes-meaning")
@@ -142,43 +142,24 @@ if (BUILD_TESTING)
    message("${PROJECT_NAME}: BUILD_TESTS: ${BUILD_TESTS}")
    include(CTest)
    #set (GCC_COVERAGE_COMPILE_FLAGS "-std=c++23")
-   #set (GCC_COVERAGE_LINK_FLAGS "-lFFJSON -lbase -llogger")
+    #set (GCC_COVERAGE_LINK_FLAGS "-ltxj -lbase -llogger")
    #include_directories (${CMAKE_CURRENT_SOURCE_DIR} "/usr/local/include/ferryfair")
    #link_directories (${PROJECT_BINARY_DIR})
    set (CMAKE_CXX_FLAGS "${GCC_COVERAGE_COMPILE_FLAGS}")
    set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${GCC_COVERAGE_LINK_FLAGS}")
    message("CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
-   add_executable(TestFFJSON
-      tests/TestFFJSON.cpp
-      sample.ffjson
-      linksSample.ffjson
-      saveFileSample.ffjson
-      MultiLevelInheritance.ffjson
-      MultiLineArray.ffjson
-      ExtensionTest.ffjson
-      UpdateTest.json
-      example.json
+   add_executable(testUnits
+      tests/testUnits.cpp
+      tests/
    )
-   target_link_libraries(TestFFJSON txj logger ferrybase)
+   target_link_libraries(testUnits txj logger ferrybase)
    if (${LINKAGE} MATCHES "DYNAMIC")
-      target_link_libraries(TestFFJSON xml2 pthread ssl crypto z rt
+      target_link_libraries(testUnits xml2 pthread ssl crypto z rt
         icuuc icudata icui18n jpeg)
    endif ()
-   target_include_directories(TestFFJSON PUBLIC
+   target_include_directories(testUnits PUBLIC
       ${CMAKE_CURRENT_SOURCE_DIR}
       ${CMAKE_INSTALL_FULL_INCLUDEDIR}/${Umbrella}
-   )
-   add_custom_command(TARGET TestFFJSON PRE_BUILD
-      COMMAND ${CMAKE_COMMAND} -E copy
-      ${CMAKE_CURRENT_SOURCE_DIR}/sample.ffjson $<TARGET_FILE_DIR:TestFFJSON>
-   )
-   add_custom_command(TARGET TestFFJSON PRE_BUILD
-      COMMAND ${CMAKE_COMMAND} -E copy
-      ${CMAKE_CURRENT_SOURCE_DIR}/linksSample.ffjson $<TARGET_FILE_DIR:TestFFJSON>
-   )
-   add_custom_command(TARGET TestFFJSON PRE_BUILD
-      COMMAND ${CMAKE_COMMAND} -E copy
-      ${CMAKE_CURRENT_SOURCE_DIR}/saveFileSample.ffjson $<TARGET_FILE_DIR:TestFFJSON>
    )
    message("INSTALL_INTERFACE:include/${Umbrella}:"
       $<INSTALL_INTERFACE:include/${Umbrella}>
@@ -191,8 +172,7 @@ if (BUILD_TESTING)
    )
    add_executable(test_ambiguity tests/test_ambiguity.cpp)
 
-   add_test(test1 TestFFJSON)
+   add_test(test1 testUnits)
    add_test(test2 IteratorIncrement)
    add_test(test3 test_ambiguity)
 endif()
-

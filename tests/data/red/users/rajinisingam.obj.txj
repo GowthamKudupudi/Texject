@@ -1,0 +1,42 @@
+inactive: false,
+email: "rajini.chintakula@gmail.com",
+name: "RajiniSingam",
+things: [
+	{
+		id: 1,
+		user: rajinisingam,
+		pics: [
+			{
+				ts: 1786361010365
+			}
+		],
+		name: "Gulabari Himalayan Rose Oudh shower gel",
+		location: [
+			17.3119971,
+			78.545868
+		],
+		details: "250ml",
+		lastModed: 1786361094512,
+		rmsgs: [
+			{
+				id: 1,
+				user: "gowtham",
+				msg: "Whats gulabari?",
+				ts: 1786384582319,
+				new: true,
+				smind: 54
+			}
+		]
+	}
+],
+smsgs: [
+	[
+		"muralimailbox",
+		1,
+		2
+	]
+],
+reps: [
+],
+lmts: 1786384582319,
+bid: "TCVTvrsWloxW75Dr"

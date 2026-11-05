@@ -1,0 +1,26 @@
+inactive: false,
+email: "shankarnamala@gmail.com",
+name: "SriSaiNeelimaKiranaShop",
+things: [
+	{
+		id: 1,
+		user: srisaineelimakiranashop,
+		pics: [
+			{
+				ts: 1786533343145
+			}
+		],
+		name: "Kinder Joy",
+		location: [
+			17.0042284,
+			82.2559226
+		],
+		lastModed: 1786533357369
+	}
+],
+smsgs: [
+],
+reps: [
+],
+lmts: 1786533259484,
+bid: "1if9xp19pTbdvMjU"

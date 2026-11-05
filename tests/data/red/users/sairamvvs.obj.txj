@@ -1,0 +1,37 @@
+id: 11,
+inactive: false,
+activationKey: "3ABHzh89ecVp8ZKW",
+email: "sairamvvs@gmail.com",
+password: "303543e9438a3cef959a4746b38c0181",
+name: "sairamvvs",
+things: [
+	{
+		id: 1,
+		user: sairamvvs,
+		pics: [
+			{
+				ts: 1751089401896
+			}
+		],
+		name: "Hibiscus Plant",
+		location: [
+			17.44,
+			78.39
+		],
+		rmsgs: [
+			{
+				id: 1,
+				user: "gowtham",
+				msg: "Entha?",
+				ts: 1751089497861,
+				smind: 15
+			}
+		]
+	}
+],
+smsgs: [
+],
+reps: [
+],
+bid: "EXDYSV6gB47iATVh",
+lmts: 1751089497861

@@ -1,0 +1,47 @@
+inactive: false,
+email: "satyagowtham.k@gmail.com",
+name: "SGowtham",
+things: [
+	{
+		id: 1,
+		user: sgowtham,
+		pics: [
+			{
+				ts: 1771132542210
+			}
+		],
+		name: "calcitas d vitamin tablets",
+		location: [
+			1,
+			1
+		],
+		details: "1 left",
+		lastModed: 1771132606000,
+		rmsgs: [
+			{
+				id: 1,
+				user: "gowtham",
+				msg: "wtf!",
+				ts: 1771132737549,
+				smind: 50,
+				rep: "¯\\_(ツ)_/¯"
+			}
+		]
+	}
+],
+smsgs: [
+	[
+		"srihari",
+		4,
+		2
+	],
+	[
+		"",
+		1,
+		1
+	]
+],
+reps: [
+],
+lmts: 1771132737549,
+bid: "wo1z4msPybIvwEU3"

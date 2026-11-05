@@ -1,0 +1,36 @@
+inactive: false,
+email: "siva@gmail.com",
+name: "Siva",
+things: [
+	{
+		id: 1,
+		user: siva,
+		pics: [
+			{
+				ts: 1764485404554
+			}
+		],
+		name: "Water can",
+		location: [
+			12.9939845,
+			77.7645092
+		],
+		lastModed: 1764485421049,
+		rmsgs: [
+			{
+				id: 1,
+				user: "gowtham",
+				msg: "Hi how much",
+				ts: 1764485066344,
+				new: true,
+				smind: 44
+			}
+		]
+	}
+],
+smsgs: [
+],
+reps: [
+],
+lmts: 1764485066344,
+bid: "piRIGmNdMfqCsjwx"
