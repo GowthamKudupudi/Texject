@@ -179,7 +179,7 @@ Sports he play: {"cricket", "badminton", "tt"}
   link, use `*favLang= <NewValue>`
 - The subscript operator will return link if its a link.
 
-## Reading, writing, deleting a Teject tree with multiple threads
+## Reading, writing, deleting a Texject tree with multiple threads
 - Handle the Texjects with shared pointer `TxjP_`, just use `TxjP_` in place 
   of `Txj_`.
 - C++:
