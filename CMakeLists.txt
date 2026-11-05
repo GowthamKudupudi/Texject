@@ -99,6 +99,9 @@ include_directories (
    "../ferrybase"
 )
 link_directories("${CMAKE_INSTALL_FULL_LIBDIR}")
+if (macOS)
+   link_directories(/opt/local/lib)
+endif()
 if(CMAKE_CONFIGURATION_TYPES)
    link_directories("../ferrybase/${BUILD_TARGET}/$(ConfigurationName)")
    link_directories("../logger/${BUILD_TARGET}/$(ConfigurationName)")
@@ -151,8 +154,13 @@ if (BUILD_TESTING)
    )
    target_link_libraries(testUnits txj logger ferrybase)
    if (${LINKAGE} MATCHES "DYNAMIC")
-      target_link_libraries(testUnits xml2 pthread ssl crypto z rt
-        icuuc icudata icui18n jpeg)
+      if (macOS)
+         target_link_libraries(testUnits xml2 pthread ssl crypto z
+           icuuc icudata icui18n jpeg)
+      else ()
+         target_link_libraries(testUnits xml2 pthread ssl crypto z rt
+           icuuc icudata icui18n jpeg)
+      endif ()
    endif ()
    target_include_directories(testUnits PUBLIC
       ${CMAKE_CURRENT_SOURCE_DIR}

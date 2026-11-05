@@ -179,6 +179,18 @@ Sports he play: {"cricket", "badminton", "tt"}
   link, use `*favLang= <NewValue>`
 - The subscript operator will return link if its a link.
 
+## Reading, writing, deleting a Texject tree with multiple threads
+- Handle the Texjects with shared pointer `TxjP_`, just use `TxjP_` in place 
+  of `Txj_`.
+- C++:
+```
+TxjP_ treePtr();
+treePtr["member1"]= 1;
+```
+- Check the tree populator example in `tests/testUnits.cpp:test48`.
+  It constructs a random tree of 100,000 objects with multiple threads
+  inserting, copying, deleting objects in a `Texject` tree.
+
 ## Build and Install
 ```
 git --depth=1 -b clang clone https://github.com/gowthamkudupudi/ferrybase.git
