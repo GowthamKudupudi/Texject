@@ -47,7 +47,6 @@ using namespace std;
 
 #include <ferrybase/ThreadPool.h>
 
-thread_local int tid= 0;
 ThreadPool* tpoolPtr= nullptr;
 
 int child_exit_status= 0;
@@ -1247,7 +1246,7 @@ int test43 () {
 	cout<< "%TEST_FINISHED% in "<< ftsDiff<< "sec"<< endl;
 	printMemUsage();
 	cout<< "Testing: t==7"<< endl;
-	if (7==t) {
+	if (7==(int)*t) {
 		cout<< "PASSED"<< endl<< endl;
 		return 1;
 	}
@@ -1674,9 +1673,9 @@ static void ppltTr (int) {
 	  pickOp:
 		a= ad(t41_rng);
 		if (c->size==6 && noCntnrIn(&*c)) {
-			flDbg(TXJ_THRDTST, "%d: unlockShared %p", tid, c);
+			flDbg(TXJ_THRDTST, "%d: unlockShared %p", tid, c.get());
 			t41_shUl(*c);
-			flDbg(TXJ_THRDTST, "%d: lock %p", tid, c);
+			flDbg(TXJ_THRDTST, "%d: lock %p", tid, c.get());
 			t41_exLk(*c);
 			Txj_::TxjP_ nc(makeContainer());
 			Txj_* inst= insertIntoCntnr(*c, *nc);
@@ -1689,7 +1688,7 @@ static void ppltTr (int) {
 					c->size);
 				totalTxjsMtx.unlock();
 			}
-			flDbg(TXJ_THRDTST, "%d: unlock %p", tid, c);
+			flDbg(TXJ_THRDTST, "%d: unlock %p", tid, c.get());
 			t41_exUl(*c);
 		} else if (a <= 3 && c->size<7) {
 			flDbg(TXJ_THRDTST, "%d: insert", tid);
@@ -1700,9 +1699,9 @@ static void ppltTr (int) {
 			} else {
 				pt(makeContainer());
 			}
-			flDbg(TXJ_THRDTST, "%d: unlockShared %p", tid, c);
+			flDbg(TXJ_THRDTST, "%d: unlockShared %p", tid, c.get());
 			t41_shUl(*c);
-			flDbg(TXJ_THRDTST, "%d: lock %p", tid, c);
+			flDbg(TXJ_THRDTST, "%d: lock %p", tid, c.get());
 			t41_exLk(*c);
 			Txj_* inst= insertIntoCntnr(*c, *pt);
 			if (inst) {
@@ -1713,22 +1712,22 @@ static void ppltTr (int) {
 					totalTxjs, inst, t41_tn(*inst), &*c, t41_tn(*c), c->size);
 				totalTxjsMtx.unlock();
 			}
-			flDbg(TXJ_THRDTST, "%d: unlock %p", tid, c);
+			flDbg(TXJ_THRDTST, "%d: unlock %p", tid, c.get());
 			t41_exUl(*c);
 		} else if (a <= 5 && c->size<7) {
 			flDbg(TXJ_THRDTST, "%d: copy", tid);
 			TxjP_ toBeCopied(pkTxjFrmTr(ThrdTstTr, false, false));
 			if (toBeCopied.get()==nullptr) {
-				flDbg(TXJ_THRDTST, "%d: unlocked %p", tid, c);
+				flDbg(TXJ_THRDTST, "%d: unlocked %p", tid, c.get());
 				t41_shUl(*c);
 				flDbg(TXJ_THRDTST, "%d: copy continue", tid);continue;}
 			int cnt= 1;
 			if (isCtnr(*toBeCopied)) {
 				cnt= countNodes(*toBeCopied);
 				// if (cnt-1 > 7) {
-				// 	flDbg(TXJ_THRDTST, "%d: unlockshared %p", tid, toBeCopied);
+				// 	flDbg(TXJ_THRDTST, "%d: unlockshared %p", tid, toBeCopied.get());
 				// 	t41_shUl(*toBeCopied);
-				// 	flDbg(TXJ_THRDTST, "%d: unlocked %p", tid, c);
+				// 	flDbg(TXJ_THRDTST, "%d: unlocked %p", tid, c.get());
 				// 	t41_shUl(*c);
 				// 	flDbg(TXJ_THRDTST, "%d: copy continue", tid);continue;
 				// }
@@ -1737,9 +1736,9 @@ static void ppltTr (int) {
 				t41_shUl(*toBeCopied);
 				goto pickOp;
 			}
-			flDbg(TXJ_THRDTST, "%d: unlockShared %p", tid, c);
+			flDbg(TXJ_THRDTST, "%d: unlockShared %p", tid, c.get());
 			t41_shUl(*c);
-			flDbg(TXJ_THRDTST, "%d: lock %p", tid, c);
+			flDbg(TXJ_THRDTST, "%d: lock %p", tid, c.get());
 			t41_exLk(*c);
 			Txj_* inst= insertIntoCntnr(*c, *toBeCopied);
 			if (inst) {
@@ -1751,21 +1750,21 @@ static void ppltTr (int) {
 					c->size);
 				totalTxjsMtx.unlock();
 			}
-			flDbg(TXJ_THRDTST, "%d: unlock %p", tid, c);
+			flDbg(TXJ_THRDTST, "%d: unlock %p", tid, c.get());
 			t41_exUl(*c);
-			flDbg(TXJ_THRDTST, "%d: unlockShared %p", tid, toBeCopied);
+			flDbg(TXJ_THRDTST, "%d: unlockShared %p", tid, toBeCopied.get());
 			t41_shUl(*toBeCopied);
 		} else {
 			flDbg(TXJ_THRDTST, "%d: delete", tid);
 			if (c->size <= numThreads+1 && totalTxjs>numThreads+1) {
 				t41_shUl(*c);
-				flDbg(TXJ_THRDTST, "%d: unlocked %p", tid, c);
+				flDbg(TXJ_THRDTST, "%d: unlocked %p", tid, c.get());
 				flDbg(TXJ_THRDTST, "%d: repicking op", tid);
 				continue;
 			}
 			Txj_* d= pkTxjFrmTr(*c, true, true, true, true);
 			t41_shUl(*c);
-			flDbg(TXJ_THRDTST, "%d: unlocked %p", tid, c);
+			flDbg(TXJ_THRDTST, "%d: unlocked %p", tid, c.get());
 			if (!d || d==&nullTxj) {
 				flDbg(TXJ_THRDTST, "%d: repicking op", tid);
 				continue;
