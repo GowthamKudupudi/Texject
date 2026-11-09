@@ -1,7 +1,6 @@
 <h1>
 <a href="https://github.com/GowthamKudupudi/Texject">
   <img src="Texject.svg#gh-light-mode-only" height="38" align="absmiddle"/>
-  <img src="Texject-dark.svg#gh-dark-mode-only" height="38" align="absmiddle"/>
 </a>
 | Texject
 </h1>
