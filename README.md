@@ -1,4 +1,4 @@
-# [Texject](https://github.com/GowthamKudupudi/Texject) | <img src="Texject.svg" style="width:9mm;position:relative;bottom:-3mm"/>
+# <a href="https://github.com/GowthamKudupudi/Texject"><img src="Texject-dark.svg" style="height:10mm;position:relative;bottom:-2mm"/></a> | Texject
 It's not just a fast C++ JSON parser!
 
 With its intuitive C++ subscript operator, Texject goes beyond JSON to provide an extensible data language and C++ framework for structured data, making it
