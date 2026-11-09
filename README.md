@@ -1,10 +1,15 @@
-# Texject
+<h1>
+<a href="https://github.com/GowthamKudupudi/Texject">
+  <img src="img/Texject.svg#gh-light-mode-only" height="38" align="absmiddle"/>
+</a>
+| Texject
+</h1>
 It's not just a fast C++ JSON parser!
 
 With its intuitive C++ subscript operator, Texject goes beyond JSON to provide an extensible data language and C++ framework for structured data, making it
-easy to read, access, modify, and persist data.
+easy to read, access, modify and persist data.
 
-The name Texject is coined from "text object."
+The name Texject is coined from "text object".
 
 Texjects are JSON-like data files with extensions such as `.txj`, `.obj.txj`, `.arr.txj`, `.set.txj`, `.oob.txj`, `.num.txj`, `.str.txj`, and more.
 
@@ -28,7 +33,7 @@ lastName: "Doe"
 - Baic types: numbers, strings, boolean, binary, xml, time stamps.
 - When serialized to JSON, maximum compaible features are put into JSON and
   remaining that can not be JSONed are cleanly discarded.
-- Its fast, lite and thread safe!
+- **Its fast, lite and thread safe!**
 
 ## Parsing simple json:
 - simple.json:
@@ -215,8 +220,8 @@ sudo make install
 If you find Texject useful and would like to support its development,
 donations are greatly appreciated.
 
-### Monero (XMR)
-89cLTvnbX5SYpKKcHycAfYRGMZBEJ1VKQ1YorAE4gjQb4SE4XKLTomTZcwJrhdr4B5SWcDa63vJgD8HvcBeusHvZ97hUiSY
+### <img src="https://www.getmonero.org/img/logo-list.svg" style="width:7mm;position:relative;bottom:-1mm"/> Monero (XMR)
+[89cLTvnbX5SYpKKcHycAfYRGMZBEJ1VKQ1YorAE4gjQb4SE4XKLTomTZcwJrhdr4B5SWcDa63vJgD8HvcBeusHvZ97hUiSY](img/xmr.png)
 
-### Nano (XNO)
-nano_3i6jsqrbeyr35yxr1htdhkpfksz7amx77589h13waj3reaziwxrjsk75z8q7
+### <img src="https://assets.nano.org/img/badge-blue.svg" style="width:7mm;position:relative;bottom:-1mm"/> Nano (XNO)
+[nano_3i6jsqrbeyr35yxr1htdhkpfksz7amx77589h13waj3reaziwxrjsk75z8q7](img/xno.png)

@@ -5269,6 +5269,14 @@ bool operator < (const Txj_::TxjP_& lhs, const Txj_::TxjP_& rhs) {
 	return *lhs<*rhs;
 }
 
+#if defined(__clang__)
+bool operator == (const Txj_::TxjP_& lhs, const Txj_::TxjP_& rhs) {
+	if (!lhs.get() && !rhs.get()) return true;
+	if (!lhs.get() || !rhs.get()) return false;
+	return *lhs == *rhs;
+}
+#endif
+
 bool operator == (const Txj_& lhs, const Txj_& rhs) {
 	flDbg(TXJ_MAIN, "==operator");
 	if (!lhs.isType(rhs.getType())) {

@@ -808,5 +808,22 @@ ostream& operator << (ostream& out, const Txj_::TxjP_& f);
 bool operator < (const Txj_& lhs, const Txj_& rhs);
 bool operator < (const Txj_::TxjP_& lhs, const Txj_::TxjP_& rhs);
 
+#if defined(__clang__)
+bool operator == (const Txj_& lhs, const Txj_& rhs);
+bool operator == (const Txj_::TxjP_& lhs, const Txj_::TxjP_& rhs);
+
+template <typename T>
+bool operator == (const Txj_::TxjP_& lhs, const T& rhs) {
+	if (!lhs.get()) return false;
+	return (T)(*lhs) == rhs;
+}
+
+template <typename T>
+bool operator == (const T& lhs, const Txj_::TxjP_& rhs) {
+	if (!rhs.get()) return false;
+	return lhs == (T)(*rhs);
+}
+#endif
+
 typedef Txj_::TxjP_ TxjP_;
 #endif
