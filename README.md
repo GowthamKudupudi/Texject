@@ -1,6 +1,6 @@
 <h1>
 <a href="https://github.com/GowthamKudupudi/Texject">
-  <img src="Texject.svg#gh-light-mode-only" height="38" align="absmiddle"/>
+  <img src="img/Texject.svg#gh-light-mode-only" height="38" align="absmiddle"/>
 </a>
 | Texject
 </h1>
@@ -221,7 +221,7 @@ If you find Texject useful and would like to support its development,
 donations are greatly appreciated.
 
 ### <img src="https://www.getmonero.org/img/logo-list.svg" style="width:7mm;position:relative;bottom:-1mm"/> Monero (XMR)
-89cLTvnbX5SYpKKcHycAfYRGMZBEJ1VKQ1YorAE4gjQb4SE4XKLTomTZcwJrhdr4B5SWcDa63vJgD8HvcBeusHvZ97hUiSY
+[89cLTvnbX5SYpKKcHycAfYRGMZBEJ1VKQ1YorAE4gjQb4SE4XKLTomTZcwJrhdr4B5SWcDa63vJgD8HvcBeusHvZ97hUiSY](img/xmr.png)
 
 ### <img src="https://assets.nano.org/img/badge-blue.svg" style="width:7mm;position:relative;bottom:-1mm"/> Nano (XNO)
-nano_3i6jsqrbeyr35yxr1htdhkpfksz7amx77589h13waj3reaziwxrjsk75z8q7
+[nano_3i6jsqrbeyr35yxr1htdhkpfksz7amx77589h13waj3reaziwxrjsk75z8q7](img/xno.png)
