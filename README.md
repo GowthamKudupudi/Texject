@@ -4,7 +4,7 @@
 </a>
 | Texject
 </h1>
-It's not just a fast C++ JSON parser!
+**It's not just a fast C++ JSON parser!**
 
 With its intuitive C++ subscript operator, Texject goes beyond JSON to provide an extensible data language and C++ framework for structured data, making it
 easy to read, access, modify and persist data.
@@ -157,8 +157,8 @@ sports: {"cricket", "badminton", "tt"}
 Txj_ emp("file://tests/data/Employee.oob.txj");
 cout<< emp["name"]<< "'s C++ test 1 score: "<< emp["testScore"][0]["C++"]<<
 endl;
-int C++test2Score= emp["testScore"][1]["C++"];
-emp["testScore"][1]["C++"]= ++langScore;
+Txj_& test2Score= emp["testScore"][1]["C++"];
+test2Score= ++(int)test2Score;
 emp.save(); // saves to the file
 emp["sports"][]= "tt"; //its already in set, so no effect! 
 cout<< "Sports he play: "<< emp["sports"]<< endl;
