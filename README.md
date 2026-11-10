@@ -1,8 +1,6 @@
 <h1>
-<a href="https://github.com/GowthamKudupudi/Texject">
-  <img src="img/Texject.svg#gh-light-mode-only" height="38" align="absmiddle"/>
-</a>
-| Texject
+<img src="img/Texject.svg" style="height:9mm" align="absmiddle"/> |
+Texject
 </h1>
 
 **It's not just a fast C++ JSON parser!**
@@ -11,6 +9,12 @@ With its intuitive C++ subscript operator, Texject goes beyond JSON to provide a
 easy to read, access, modify and persist data.
 
 The name Texject is coined from "text object".
+
+<h3>
+<img src="img/github.svg" align="absmiddle"/>
+<a href="https://github.com/GowthamKudupudi/Texject">
+https://github.com/GowthamKudupudi/Texject</a>
+</h3>
 
 Texjects are JSON-like data files with extensions such as `.txj`, `.obj.txj`, `.arr.txj`, `.set.txj`, `.oob.txj`, `.num.txj`, `.str.txj`, and more.
 
@@ -179,7 +183,7 @@ Sports he play: {"cricket", "badminton", "tt"}
   quotes all strings.
 
 ## links
-- In `Employee.oob.txj`, `favLang` in after inheritane operator is a link.
+- In `Employee.oob.txj`, `favLang` in `[]` after inheritane operator is a link.
 - When a link is casted it casts the target.
 - When a link is assigned it doesn't effect the target. To assign target via
   link, use `*favLang= <NewValue>`
