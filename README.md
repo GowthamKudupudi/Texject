@@ -1,6 +1,8 @@
 <h1>
 <img src="img/Texject.svg" style="height:9mm" align="absmiddle"/> |
-Texject
+Texject&nbsp; <a href="https://github.com/GowthamKudupudi/Texject"
+style="position:absolute;top:2mm;right:2mm">
+<img src="img/github.svg" style="height:10mm" align="absmiddle"/></a>
 </h1>
 
 **It's not just a fast C++ JSON parser!**
@@ -9,12 +11,6 @@ With its intuitive C++ subscript operator, Texject goes beyond JSON to provide a
 easy to read, access, modify and persist data.
 
 The name Texject is coined from "text object".
-
-<h3>
-<img src="img/github.svg" align="absmiddle"/>
-<a href="https://github.com/GowthamKudupudi/Texject">
-https://github.com/GowthamKudupudi/Texject</a>
-</h3>
 
 Texjects are JSON-like data files with extensions such as `.txj`, `.obj.txj`, `.arr.txj`, `.set.txj`, `.oob.txj`, `.num.txj`, `.str.txj`, and more.
 
